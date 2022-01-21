@@ -1,0 +1,11 @@
+[package]
+name = "operation_journal"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rustbreak = { version = "2.0", features = ["ron_enc"] }
+serde = "1.0"
+thiserror = "1.0"
