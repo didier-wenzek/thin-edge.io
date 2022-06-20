@@ -25,7 +25,7 @@ Changes to the vision need to be done in a plenum of stakeholders, this makes su
 
 * Teams are either single contributors or a group of them
 * They are responsible for a specific part of project, and as such are the maintainers of those parts
-    * This includes: Reviewing pull requests, triaging issuess assigned to them, and general maintenance
+    * This includes: Reviewing pull requests, triaging issues assigned to them, and general maintenance
 * Each team is assigned a single or multiple subtrees of the project, as defined by the project structure
 * The teams follow the project hierarchy for decisions, i.e. higher decisions take precedence
 
@@ -57,7 +57,7 @@ Underneath the leads are the teams or individuals, that each are allowed to  mak
 The project has a hierarchy to solve these two problems:
 
 1. How can participating organizations make sure that their voice and interests are represented in the project?
-    - Each member party appoints a core team member
+    - Each member party appoints one core team member
     - They form the group of people that have to, and are responsible for, signing off on the technical implementation of the project
 2. How to make the lives of these team members easier?
 
