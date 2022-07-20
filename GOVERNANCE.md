@@ -162,7 +162,7 @@ core contributors = [SAG, IFM]
   Coding style is enforced via `rustfmt` in its default configuration.
   Compliance with the coding style is enforced via CI.
 - testing
-  Testing is done via workflows in github actions using `cargo test` for all
+  Testing is done via workflows in github actions using `cargo test --all-features` for all
   crates.
   The main objective with this is that a developer should be able to simply run
   `cargo test` on their local machine to be able to see whether CI would succeed
