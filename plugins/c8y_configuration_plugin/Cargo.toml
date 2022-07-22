@@ -18,7 +18,7 @@ assets = [
 anyhow = "1.0"
 c8y_api = { path = "../../crates/core/c8y_api" }
 c8y_smartrest = { path = "../../crates/core/c8y_smartrest" }
-clap = { version = "3.0", features = ["cargo", "derive"] }
+clap = { version = "3.2", features = ["cargo", "derive"] }
 csv = "1.1"
 download = { path = "../../crates/common/download" }
 mqtt_channel = { path = "../../crates/common/mqtt_channel" }
@@ -38,5 +38,5 @@ mockito = "0.31"
 mqtt_tests = { path = "../../crates/tests/mqtt_tests" }
 serial_test = "0.6"
 tedge_test_utils = { path = "../../crates/tests/tedge_test_utils" }
-test-case = "2.0"
+test-case = "2.2"
 toml = "0.5"
