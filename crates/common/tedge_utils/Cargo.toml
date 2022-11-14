@@ -16,7 +16,7 @@ fs-notify = ["strum_macros", "try-traits", "notify"]
 [dependencies]
 futures = "0.3"
 notify =  { version = "5.0", optional = true, default-features = false }
-nix = "0.24"
+nix = "0.25"
 strum_macros = { version = "0.24", optional = true }
 tempfile = "3.2"
 thiserror = "1.0"
