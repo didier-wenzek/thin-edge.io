@@ -113,7 +113,7 @@ impl<M: Message> Clone for Recipient<M> {
 
 /// Make a `Recipient<N>` from a `Recipient<M>`
 ///
-/// This is a workaround to the fact the compiler reject a From implementation:
+/// This is a workaround to the fact the compiler rejects a From implementation:
 ///
 /// ```shell
 ///
