@@ -2959,6 +2959,8 @@ dependencies = [
  "async-trait",
  "reqwest",
  "tedge_actors",
+ "thiserror",
+ "url",
 ]
 
 [[package]]
