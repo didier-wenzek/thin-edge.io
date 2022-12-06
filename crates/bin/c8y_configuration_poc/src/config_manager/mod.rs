@@ -51,16 +51,6 @@ impl ActorBuilder for ConfigManager {
             directory: self.config.config_dir,
         };
 
-        let mqtt_con = mqtt_ext::new_connection(
-            runtime,
-            MqttConfig {
-                host: self.config.mqtt_host.to_string(),
-                port: self.config.mqtt_port,
-            },
-            self.address.events.clone().into(),
-        )
-        .await?;
-
         let file_watcher = file_system_ext::new_watcher(
             runtime,
             watcher_config,

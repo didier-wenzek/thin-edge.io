@@ -1,5 +1,4 @@
 use crate::file_system_ext::{FileEvent, FileRequest};
-use crate::mqtt_ext::MqttMessage;
 use async_trait::async_trait;
 use tedge_actors::{
     adapt, fan_in_message_type, new_mailbox, Actor, Address, ChannelError, DynSender, Mailbox,
@@ -7,6 +6,7 @@ use tedge_actors::{
 use tedge_http_ext::{HttpError, HttpRequest, HttpResponse};
 
 type HttpResult = Result<HttpResponse, HttpError>;
+type MqttMessage = mqtt_channel::Message;
 
 fan_in_message_type!(ConfigInputAndResponse[MqttMessage, FileEvent, HttpResult] : Debug);
 fan_in_message_type!(ConfigInput[MqttMessage, FileEvent] : Debug);
