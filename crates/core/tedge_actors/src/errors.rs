@@ -26,7 +26,7 @@ pub enum RuntimeError {
     RuntimePanic,
 
     #[error(transparent)]
-    LinkError(#[from] LinkError)
+    LinkError(#[from] LinkError),
 }
 
 /// Error raised while connecting actor instances

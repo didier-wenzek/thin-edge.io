@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::{LinkError, Recipient, RuntimeError, RuntimeHandle};
+use async_trait::async_trait;
 
 /// Materialize an actor instance under construction
 ///
@@ -14,9 +14,6 @@ pub trait ActorBuilder {
 }
 
 /// Implemented by actor builders to connect the actors under construction
-pub trait PeerLinker<Input,Output> {
+pub trait PeerLinker<Input, Output> {
     fn connect(&mut self, output_sender: Recipient<Output>) -> Result<Recipient<Input>, LinkError>;
 }
-
-
-
