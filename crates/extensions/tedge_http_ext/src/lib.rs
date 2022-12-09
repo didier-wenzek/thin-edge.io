@@ -6,8 +6,8 @@ pub use messages::*;
 use actor::*;
 use async_trait::async_trait;
 use tedge_actors::{
-    new_mailbox, ActorBuilder, Address, KeyedRecipient, LinkError, Mailbox, PeerLinker, DynSender,
-    RecipientVec, RuntimeError, RuntimeHandle,
+    new_mailbox, ActorBuilder, Address, KeyedSender, LinkError, Mailbox, PeerLinker, DynSender,
+    SenderVec, RuntimeError, RuntimeHandle,
 };
 
 pub struct HttpActorInstance {
@@ -36,7 +36,7 @@ impl ActorBuilder for HttpActorInstance {
     async fn spawn(self, runtime: &mut RuntimeHandle) -> Result<(), RuntimeError> {
         let actor = self.actor;
         let mailbox = self.mailbox;
-        let clients = RecipientVec::new_recipient(self.clients);
+        let clients = SenderVec::new_sender(self.clients);
 
         runtime.run(actor, mailbox, clients).await
     }
@@ -50,7 +50,7 @@ impl PeerLinker<HttpRequest, HttpResult> for HttpActorInstance {
         let client_idx = self.clients.len();
         self.clients.push(client);
 
-        Ok(KeyedRecipient::new_recipient(
+        Ok(KeyedSender::new_sender(
             client_idx,
             self.address.clone(),
         ))
