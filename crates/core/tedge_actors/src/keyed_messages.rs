@@ -1,4 +1,4 @@
-use crate::{Address, ChannelError, Message, Recipient, Sender};
+use crate::{Address, ChannelError, Message, DynSender, Sender};
 use async_trait::async_trait;
 
 /// A recipient that adds a source id on the fly
@@ -8,7 +8,7 @@ pub struct KeyedRecipient<K: Message + Clone, M: Message> {
 }
 
 impl<K: Message + Clone, M: Message> KeyedRecipient<K, M> {
-    pub fn new_recipient(key: K, address: Address<(K, M)>) -> Recipient<M> {
+    pub fn new_recipient(key: K, address: Address<(K, M)>) -> DynSender<M> {
         Box::new(KeyedRecipient { key, address })
     }
 }
@@ -19,7 +19,7 @@ impl<K: Message + Clone, M: Message> Sender<M> for KeyedRecipient<K, M> {
         self.address.send((self.key.clone(), message)).await
     }
 
-    fn recipient_clone(&self) -> Recipient<M> {
+    fn recipient_clone(&self) -> DynSender<M> {
         Box::new(KeyedRecipient {
             key: self.key.clone(),
             address: self.address.clone(),
@@ -29,11 +29,11 @@ impl<K: Message + Clone, M: Message> Sender<M> for KeyedRecipient<K, M> {
 
 /// A vector of recipients to which messages are specifically addressed using a source id
 pub struct RecipientVec<M: Message> {
-    recipients: Vec<Recipient<M>>,
+    recipients: Vec<DynSender<M>>,
 }
 
 impl<M: Message> RecipientVec<M> {
-    pub fn new_recipient(recipients: Vec<Recipient<M>>) -> Recipient<(usize, M)> {
+    pub fn new_recipient(recipients: Vec<DynSender<M>>) -> DynSender<(usize, M)> {
         Box::new(RecipientVec { recipients })
     }
 }
@@ -48,7 +48,7 @@ impl<M: Message> Sender<(usize, M)> for RecipientVec<M> {
         Ok(())
     }
 
-    fn recipient_clone(&self) -> Recipient<(usize, M)> {
+    fn recipient_clone(&self) -> DynSender<(usize, M)> {
         let recipients = self
             .recipients
             .iter()
