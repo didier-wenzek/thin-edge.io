@@ -19,7 +19,7 @@ impl<M: Message> Sender<M> for VecRecipient<M> {
         Ok(())
     }
 
-    fn recipient_clone(&self) -> DynSender<M> {
+    fn sender_clone(&self) -> DynSender<M> {
         Box::new(VecRecipient {
             messages: self.messages.clone(),
         })
