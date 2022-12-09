@@ -78,7 +78,7 @@ pub trait Sender<M>: 'static + Send + Sync {
     async fn send(&mut self, message: M) -> Result<(), ChannelError>;
 
     /// Clone this sender in order to send messages to the same recipient from another actor
-    fn recipient_clone(&self) -> DynSender<M>;
+    fn sender_clone(&self) -> DynSender<M>;
 }
 
 /// An `Address<M>` is a `Recipient<N>` provided `N` implements `Into<M>`
@@ -94,7 +94,7 @@ impl<M: Message, N: Message + Into<M>> Sender<N> for Address<M> {
         Ok(self.sender.send(message.into()).await?)
     }
 
-    fn recipient_clone(&self) -> DynSender<N> {
+    fn sender_clone(&self) -> DynSender<N> {
         Box::new(self.clone())
     }
 }
@@ -107,17 +107,17 @@ impl<M: Message> Debug for DynSender<M> {
 
 impl<M: Message> Clone for DynSender<M> {
     fn clone(&self) -> Self {
-        self.recipient_clone()
+        self.sender_clone()
     }
 }
 
-/// Make a `Recipient<N>` from a `Recipient<M>`
+/// Make a `DynSender<N>` from a `DynSender<M>`
 ///
 /// This is a workaround to the fact the compiler rejects a From implementation:
 ///
 /// ```shell
 ///
-///  impl<M: Message, N: Message + Into<M>> From<Recipient<M>> for Recipient<N> {
+///  impl<M: Message, N: Message + Into<M>> From<DynSender<M>> for DynSender<N> {
 ///     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ///     |
 ///     = note: conflicting implementation in crate `core`:
@@ -125,7 +125,7 @@ impl<M: Message> Clone for DynSender<M> {
 /// ```
 pub fn adapt<M: Message, N: Message + Into<M>>(sender: &DynSender<M>) -> DynSender<N> {
     Box::new(Adapter {
-        sender: sender.recipient_clone(),
+        sender: sender.sender_clone(),
     })
 }
 
@@ -145,9 +145,9 @@ impl<M: Message, N: Message + Into<M>> Sender<N> for Adapter<M> {
         Ok(self.sender.send(message.into()).await?)
     }
 
-    fn recipient_clone(&self) -> DynSender<N> {
+    fn sender_clone(&self) -> DynSender<N> {
         Box::new(Adapter {
-            sender: self.sender.recipient_clone(),
+            sender: self.sender.sender_clone(),
         })
     }
 }
