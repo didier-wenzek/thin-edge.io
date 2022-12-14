@@ -81,7 +81,7 @@ impl<Input: Message, Output: Message> MessageBoxBuilder for SimpleMessageBoxBuil
     }
 
     fn set_output(&mut self, output: DynSender<Output>) -> Result<(), LinkError> {
-        if let Some(_) = self.output {
+        if self.output.is_some() {
             Err(LinkError::ExcessPeer {
                 role: "output".to_string(),
             })
