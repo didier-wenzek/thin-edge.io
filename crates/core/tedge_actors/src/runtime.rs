@@ -41,7 +41,7 @@ impl Runtime {
         let (actions_sender, actions_receiver) = mpsc::channel(16);
         let runtime_actor = RuntimeActor {
             actions: actions_receiver,
-            events: events_sender,
+            _events: events_sender,
         };
         let runtime_task = tokio::spawn(runtime_actor.run());
         let runtime = Runtime {
@@ -126,7 +126,7 @@ impl RuntimeHandle {
 /// The actual runtime implementation
 struct RuntimeActor {
     actions: mpsc::Receiver<RuntimeAction>,
-    events: Option<DynSender<RuntimeEvent>>,
+    _events: Option<DynSender<RuntimeEvent>>,
     // TODO store a join handle for each running task/actor
     // TODO store a sender of RuntimeRequest to each actors
 }
