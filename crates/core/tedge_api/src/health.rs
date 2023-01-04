@@ -30,3 +30,17 @@ pub async fn send_health_status(responses: &mut impl PubChannel, daemon_name: &s
     let health_message = Message::new(&response_topic_health, health_status);
     let _ = responses.send(health_message).await;
 }
+
+pub async fn get_health_status_message(daemon_name: &str) -> Message {
+    let response_topic_health =
+        Topic::new_unchecked(format!("tedge/health/{daemon_name}").as_str());
+
+    let health_status = json!({
+        "status": "up",
+        "pid": process::id(),
+        "time": OffsetDateTime::now_utc().unix_timestamp(),
+    })
+    .to_string();
+
+    Message::new(&response_topic_health, health_status)
+}
