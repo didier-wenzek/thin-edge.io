@@ -26,7 +26,11 @@ pub struct RunActor<A: Actor> {
 impl<A: Actor> RunActor<A> {
     pub fn new(actor: A, messages: A::MessageBox) -> Self {
         let name = format!("actor '{}'", actor.name());
-        RunActor { name, actor, messages }
+        RunActor {
+            name,
+            actor,
+            messages,
+        }
     }
 }
 
