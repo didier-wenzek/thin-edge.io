@@ -1,5 +1,6 @@
 use crate::Actor;
 use crate::ActorBuilder;
+use crate::ChannelError;
 use crate::DynSender;
 use crate::RunActor;
 use crate::RuntimeError;
@@ -77,8 +78,8 @@ impl Runtime {
     pub async fn run_to_completion(self) -> Result<(), RuntimeError> {
         // FIXME Dropping the handler terminates the runtime too soon
         //       because the actors have currently no sender connected to the runtime.
-        // let bg_task = self.drop_runtime_handle();
-        Runtime::wait_for_completion(self.bg_task).await
+        let bg_task = self.drop_runtime_handle();
+        Runtime::wait_for_completion(bg_task).await
     }
 
     /// Drop the runtime handle,
@@ -109,12 +110,12 @@ pub struct RuntimeHandle {
 impl RuntimeHandle {
     /// Stop all the actors and the runtime
     pub async fn shutdown(&mut self) -> Result<(), RuntimeError> {
-        self.send(RuntimeAction::Shutdown).await
+        Ok(self.send(RuntimeAction::Shutdown).await?)
     }
 
     /// Launch a task in the background
     pub async fn spawn(&mut self, task: impl Task) -> Result<(), RuntimeError> {
-        self.send(RuntimeAction::Spawn(Box::new(task))).await
+        Ok(self.send(RuntimeAction::Spawn(Box::new(task))).await?)
     }
 
     /// Launch an actor instance
@@ -127,7 +128,7 @@ impl RuntimeHandle {
     }
 
     /// Send an action to the runtime
-    pub async fn send(&mut self, action: RuntimeAction) -> Result<(), RuntimeError> {
+    pub async fn send(&mut self, action: RuntimeAction) -> Result<(), ChannelError> {
         debug!(target: "Runtime", "schedule {:?}", action);
         self.actions_sender.send(action).await?;
         Ok(())
@@ -149,7 +150,7 @@ impl RuntimeActor {
         while let Some(action) = self.actions.next().await {
             match action {
                 RuntimeAction::Shutdown => {
-                    todo!();
+                    break;
                     // TODO send a Shutdown request to each active actor
                     // TODO wait say 60 s, then cancel all tasks still running
                 }
