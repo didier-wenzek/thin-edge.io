@@ -7,6 +7,8 @@ use crate::Task;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use futures::StreamExt;
+use log::debug;
+use log::info;
 use tokio::task::JoinHandle;
 
 /// Actions sent by actors to the runtime
@@ -126,7 +128,7 @@ impl RuntimeHandle {
 
     /// Send an action to the runtime
     pub async fn send(&mut self, action: RuntimeAction) -> Result<(), RuntimeError> {
-        eprintln!("Runtime: schedule {:?}", action);
+        debug!(target: "Runtime", "schedule {:?}", action);
         self.actions_sender.send(action).await?;
         Ok(())
     }
@@ -142,7 +144,7 @@ struct RuntimeActor {
 
 impl RuntimeActor {
     async fn run(mut self) {
-        eprintln!("Runtime: started");
+        info!(target: "Runtime", "started");
         // TODO select next action or next task completion
         while let Some(action) = self.actions.next().await {
             match action {
@@ -152,7 +154,7 @@ impl RuntimeActor {
                     // TODO wait say 60 s, then cancel all tasks still running
                 }
                 RuntimeAction::Spawn(task) => {
-                    eprintln!("Runtime: spawn {}", task.name());
+                    info!(target: "Runtime", "spawn {}", task.name());
                     tokio::spawn(task.run());
 
                     // TODO log a start event
@@ -162,6 +164,6 @@ impl RuntimeActor {
                 }
             }
         }
-        eprintln!("Runtime: stopped");
+        info!(target: "Runtime", "stopped");
     }
 }
