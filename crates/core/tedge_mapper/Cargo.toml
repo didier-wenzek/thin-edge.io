@@ -26,6 +26,8 @@ assets = [
 
 # Required for DEBHELPER
 [package.metadata.deb.systemd-units]
+start = false
+enable = false
 
 [dependencies]
 anyhow = "1.0"
