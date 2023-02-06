@@ -29,6 +29,12 @@ pub enum C8YRestError {
 
     #[error("Failed with {0}")]
     CustomError(String),
+
+    #[error(transparent)]
+    FromDownloadError(#[from] download::DownloadError),
+
+    #[error(transparent)]
+    FromFileError(#[from] tedge_utils::file::FileError),
 }
 
 pub type C8YRestResult = Result<C8YRestResponse, C8YRestError>;
