@@ -521,6 +521,7 @@ dependencies = [
  "tedge_http_ext",
  "tedge_mqtt_ext",
  "tedge_signal_ext",
+ "tedge_timer_ext",
  "tedge_utils",
  "thiserror",
  "tokio",
