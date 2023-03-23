@@ -54,6 +54,7 @@
   - [How to retrieve JWT token from Cumulocity?](howto-guides/011_retrieve_jwt_token_from_cumulocity.md)
 
 - [Reference](references/references.md)
+  - [Supported platforms](./supported-platforms.md)
   - [Thin-edge.io configuration files](references/thin-edge-config-files.md)
   - [MQTT bridge configuration](references/bridged-topics.md)
   - [Init System Configuration File](references/init-system-config.md)
