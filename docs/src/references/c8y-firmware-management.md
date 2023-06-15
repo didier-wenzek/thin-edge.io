@@ -1,3 +1,9 @@
+---
+title: Firmware Management
+tags: [Reference, Firmware]
+sidebar_position: 1
+---
+
 # Device Firmware Management using Cumulocity
 
 Thin-edge provides an operation plugin to

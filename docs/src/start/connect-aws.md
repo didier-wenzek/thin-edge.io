@@ -1,3 +1,9 @@
+---
+title: Connecting to AWS IoT
+tags: [Getting Started, AWS, Connection]
+sidebar_position: 4
+---
+
 # Connect your device to AWS IoT
 
 The very first step to enable **thin-edge.io** is to connect your device to the cloud.

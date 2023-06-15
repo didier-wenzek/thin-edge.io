@@ -1,3 +1,9 @@
+---
+title: Reference
+tags: [Reference]
+sidebar_position: 6
+---
+
 # Reference Guides
 
 ## Setup

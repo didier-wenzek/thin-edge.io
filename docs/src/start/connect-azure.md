@@ -1,3 +1,9 @@
+---
+title: Connecting to Azure IoT
+tags: [Getting Started, Azure, Connection]
+sidebar_position: 3
+---
+
 # Connect your device to Azure IoT
 
 The very first step to enable **thin-edge.io** is to connect your device to the cloud.

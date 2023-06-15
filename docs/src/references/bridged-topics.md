@@ -1,3 +1,9 @@
+---
+title: Bridge
+tags: [Reference, MQTT]
+sidebar_position: 1
+---
+
 # The bridged topics
 
 This document lists the MQTT topics that are supported by the thin-edge.io.

@@ -1,3 +1,9 @@
+---
+title: Monitoring
+tags: [Getting Started, Monitoring, Collectd]
+sidebar_position: 8
+---
+
 # Monitor your device with collectd
 
 With thin-edge.io device monitoring, you can collect metrics from your device

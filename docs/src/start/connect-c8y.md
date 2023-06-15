@@ -1,3 +1,9 @@
+---
+title: Connecting to Cumulocity IoT
+tags: [Getting Started, Cumulocity, Connection]
+sidebar_position: 2
+---
+
 # Connect your device to Cumulocity IoT
 
 The very first step to enable `thin-edge.io` is to connect your device to the cloud.
