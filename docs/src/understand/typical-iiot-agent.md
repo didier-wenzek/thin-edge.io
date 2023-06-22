@@ -1,5 +1,7 @@
 # A typical IIoT agent running thin-edge
 
+![Typical hardware](images/typical-iiot-agent-hardware.svg)
+
 TODO: a sketch highlighting:
 - Complete equipment with hardware, software, sensors, network
 - hardware: A main device + 2 child devices + 2 sensors per device + 2 actuators per device
@@ -10,6 +12,8 @@ TODO: a sketch highlighting:
 - child-device agent running on a child device
 - child-device agent running on the main device on behalf of a non-MQTT child device
 - services running on the devices and the child devices
+
+![Typical thin-edge deployment](images/typical-iiot-agent.svg)
 
 TODO: describe the agent introducing thin-edge specific concept
 - child devices
