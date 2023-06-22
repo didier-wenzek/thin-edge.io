@@ -1,7 +1,7 @@
 ---
 title: Firmware Management
 tags: [Reference, Firmware]
-sidebar_position: 1
+sidebar_position: 9
 ---
 
 # Device Firmware Management using Cumulocity

@@ -1,7 +1,7 @@
 ---
 title: Software Management Plugin API
 tags: [Reference, Software Management, API]
-sidebar_position: 1
+sidebar_position: 10
 ---
 
 # Software Management Plugin API

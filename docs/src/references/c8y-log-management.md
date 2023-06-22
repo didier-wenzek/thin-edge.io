@@ -1,7 +1,7 @@
 ---
 title: Log File Management
 tags: [Reference, Log Files]
-sidebar_position: 1
+sidebar_position: 7
 ---
 
 # Log file management from Cumulocity

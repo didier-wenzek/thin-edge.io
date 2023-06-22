@@ -1,7 +1,7 @@
 ---
 title: Init System Configuration
 tags: [Reference, Unix]
-sidebar_position: 1
+sidebar_position: 3
 ---
 
 # Init System Configuration File

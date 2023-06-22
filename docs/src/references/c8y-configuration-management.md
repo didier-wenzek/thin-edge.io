@@ -1,7 +1,7 @@
 ---
 title: Device Configuration Management
 tags: [Reference, Configuration]
-sidebar_position: 1
+sidebar_position: 8
 ---
 
 # Device Configuration Management using Cumulocity

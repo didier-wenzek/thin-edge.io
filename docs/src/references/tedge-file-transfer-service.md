@@ -1,7 +1,7 @@
 ---
 title: File Transfer Service
 tags: [Reference, HTTP]
-sidebar_position: 1
+sidebar_position: 6
 ---
 
 # Thin Edge File Transfer Service
