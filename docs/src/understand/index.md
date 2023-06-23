@@ -4,14 +4,14 @@ Thin-edge is an open-source IIoT development toolbox based on a versatile set of
 that can be easily combined with extensions specific to an equipment, an application or a cloud end-point.
 
 Thin-edge is designed to ease the development of smart IIoT agents.
-These agents run on the edge, at the frontier between IT cloud computing and OT industrial equipments,
-and act as gateways between the cloud and the devices embedded into smart equipments, machines or plants.
+These agents run on the edge, at the frontier between IT cloud computing and OT industrial equipment,
+and act as gateways between the cloud and the devices embedded into smart equipment, machines or plants.
 They main functions and challenges are to:
-- establish a secure and reliable connection from the cloud to a fleet of smart equipments,
-- provide a uniform way to monitor and control these equipments despite the diversity of hardware and protocol,
-- collect telemetry and monitoring data from the various sensors and processes running on the equipments,
+- establish a secure and reliable connection from the cloud to a fleet of smart equipment,
+- provide a uniform way to monitor and control these assets despite the diversity of hardware and protocol,
+- collect telemetry and monitoring data from the various sensors and processes running on the devices,
 - process these data with local analytics tools and push the relevant subset to the cloud,
-- monitor, configure and update from the cloud the agents and the attached equipments.
+- monitor, configure and update from the cloud the agents and the attached devices.
 
 To implement these functions, thin-edge proposes to design an IIoT agent using a combination of software components,
 which are deployed on the main agent device as well as the set of interconnected embedded devices that form the equipment.

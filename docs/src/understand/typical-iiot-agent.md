@@ -39,7 +39,7 @@ Thin-edge proposes to use a combination of ready-to-use software components supp
 with software extensions specifically developed to meet the requirements of the equipment, the hardware and the application.
 
 - An __MQTT bus__ is used for all the interactions between these components.
-  Thin-edge defines a __JSON over MQTT API__ for the major features:
+   Thin-edge defines a __JSON over MQTT API__ for the major features:
   telemetry data collection, service monitoring, remote operations
   as well as firmware, software and configuration management.
   To be precise, this API combines MQTT and HTTP,
