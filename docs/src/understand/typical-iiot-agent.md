@@ -18,13 +18,15 @@ A typical IIoT agent acts a gateway between the cloud and devices deployed over 
 ![Typical hardware](images/typical-iiot-agent-hardware.svg)
 
 All these capabilities are made available in the cloud using __device twins__,
-virtual representations of the actual devices with remote control to:
+virtual representations of the actual devices giving remote control to:
+
 - manage firmware, software packages and configuration files
 - monitor the industrial processes,
 - and operate the devices.
 
 __The purpose of thin-edge is to support the development of such smart IIoT agents__,
 by providing the building blocks to:
+
 - provide a uniform way to monitor and control misc hardware and software despite the diversity of hardware and protocol,
 - establish a cloud virtual view, a twin, of each piece of equipment that needs to be remotely monitored and managed,
 - supervise on the embedded devices all the operations triggered from the cloud
@@ -33,15 +35,32 @@ by providing the building blocks to:
 
 ![Typical thin-edge deployment](images/typical-iiot-agent.svg)
 
-TODO: describe the agent introducing thin-edge specific concept
+Thin-edge proposes to use a combination of ready-to-use software components supporting the core features,
+with software extensions specifically developed to meet the requirements of the equipment, the hardware and the application.
+
+- An __MQTT bus__ is used for all the interactions between these components.
+  Thin-edge defines a __JSON over MQTT API__ for the major features:
+  telemetry data collection, service monitoring, remote operations
+  as well as firmware, software and configuration management.
+  To be precise, this API combines MQTT and HTTP,
+  the latter being used for local file transfers and the former for asynchronous event processing. 
+- Thin-edge components, the __agent__ and a set of __operation specific plugins__, supervise all the operations,
+  coordinating remote requests with the local thin-edge-enabled software components.
+- Agent-specific software components, the __child connectors__, that interact with the hardware that make the piece of equipment.
+  Note that the use of an MQTT and HTTP API give the freedom to deploy these connectors directly on the associated hardware
+  as well as on the main device acting as proxy, when, for some reasons,
+  the child device software cannot be updated to directly support the thin-edge protocol.
+- A cloud specific __mapper__ handles the communication with the cloud,
+  translating and forwarding requests and responses to and from the local components.
+  This bidirectional communication establishes the twin live representation of the asset
+  with its set of devices, services, configuration files and monitoring data.
+
+TODO: define thin-edge specific terms:
+
+- main device
 - child devices
 - services
 - mapper
+- agent
 - plugins
-- out-of-the box versus provided by the agent developer
-- mosquitto
-- tedge-mapper
-- tedge-device-management
-- child-device agent running on a child device
-- child-device agent running on the main device on behalf of a non-MQTT child device
-- services running on the devices and the child devices
+- child connector
