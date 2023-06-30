@@ -92,6 +92,6 @@ draft: true
   - [Log Management](references/c8y-log-management.md)
   - [Configuration Management](references/c8y-configuration-management.md)
   - [Firmware Management](references/c8y-firmware-management.md)
-  - [Thin Edge File Transfer Service](references/cli/tedge-file-transfer-service.md)
+  - [Thin Edge File Transfer Service](references/tedge-file-transfer-service.md)
   
 - [Index](SUMMARY.md)
