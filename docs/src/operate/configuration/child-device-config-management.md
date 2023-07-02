@@ -157,11 +157,11 @@ Follow these steps to bootstrap the child device:
     ```text
     http://{tedge-ip}:8000/tedge/file-transfer/{child-id}/c8y-configuration-plugin
     ```
-   
+
     * `{tedge-ip}` is the IP of the thin-edge.io device which is configured as `mqtt.external.bind.address` or `mqtt.bind.address` or
      `127.0.0.1` if neither is configured.
     * `{child-id}` is the child-device-id.
-   
+
     **Example**
 
     ```sh
@@ -177,7 +177,7 @@ Follow these steps to bootstrap the child device:
     **Topic**
 
     ```text
-    tedge/{child-d}/commands/res/config_snapshot
+    tedge/{child-id}/commands/res/config_snapshot
     ```
 
     **Payload** 
@@ -209,11 +209,11 @@ Following these steps, a configuration file from the child-device will be reques
     The `config_snapshot` requests will be received by this subscriber.
 2. In Cumulocity IoT, navigate to `Device Management` &rarr; `Devices` &rarr; `All Devices` &rarr; `select the thin-edge device` &rarr; `Child devices` &rarr; select the child-device (`child1`) &rarr; `Configuration`
 3. Select the config file type (`config1`) from the list of configuration files under the `DEVICE-SUPPORTED CONFIGURATIONS` and then click on the `Get snapshot from device` button.
-   
+
     ![get-config-snapshot](../../start/images/get-config-snapshot.png)
 
     This will trigger a `config_snapshot` request to the child-device via MQTT which will be received by the subscriber spawned in step. 1 as follows:
-   
+
     **Example**
 
     ```json
@@ -234,7 +234,7 @@ Following these steps, a configuration file from the child-device will be reques
     **Topic**
 
     ```text
-    tedge/{child-d}/commands/res/config_snapshot
+    tedge/{child-id}/commands/res/config_snapshot
     ```
 
     **Payload**
@@ -274,9 +274,9 @@ Following these steps, a configuration file from the child-device will be reques
     **Topic**
     
     ```text
-    tedge/{child-d}/commands/res/config_snapshot
+    tedge/{child-id}/commands/res/config_snapshot
     ```
-   
+
     **Payload**
 
     ```json
@@ -292,7 +292,7 @@ Following these steps, a configuration file from the child-device will be reques
     ```sh te2mqtt
     tedge mqtt pub "tedge/child1/commands/res/config_snapshot" '{"status": "successful", "path": "/home/pi/config/config1", "type": "config1"}'
     ```
-   
+
 ## Step 3: Update configuration on the child device
 
 Performing config update is an 8-step process:
@@ -318,7 +318,7 @@ Performing config update is an 8-step process:
     ![send-configuration-snapshot](../../start/images/send-config-snapshot-configurations.png)
 
     The subscriber spawned in step 1 will receive the following request on `tedge/child1/commands/req/config_update` topic.
-   
+
     ```json title="Topic: tedge/child1/commands/req/config_update"
     {
       "url": "http://127.0.0.1:8000/tedge/file-transfer/child1/config_update/config1",
@@ -335,9 +335,9 @@ Performing config update is an 8-step process:
 5. Optionally send an "executing" operation status update to acknowledge the receipt of the request via MQTT as follows:
 
     **Topic**
-   
+
     ```text
-    tedge/{child-d}/commands/res/config_update
+    tedge/{child-id}/commands/res/config_update
     ```
 
     **Payload**
@@ -349,13 +349,13 @@ Performing config update is an 8-step process:
       "path": "/child/local/fs/path"
     }
     ```
-   
+
     **Example**
 
     ```sh te2mqtt
     tedge mqtt pub "tedge/child1/commands/res/config_update" '{"status": "executing", "path": "/home/pi/config/config1", "type": "config1"}'
     ```
-   
+
     :::note
     Sending the `executing` status will reset the operation timeout window.
     The timer can be reset any number of times by sending this response.
@@ -366,7 +366,7 @@ Performing config update is an 8-step process:
     After sending the "executing" status message, the connector must download the configuration file update
     from the `URL` received in the request with an `HTTP GET` request.
     The connector can then apply the downloaded configuration file update on the device.
-   
+
     ```sh
     curl http://127.0.0.1:8000/tedge/file-transfer/child1/config_update/config1 \
         --output config1
