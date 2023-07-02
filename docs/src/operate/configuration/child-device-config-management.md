@@ -122,16 +122,16 @@ In this step, a child-device with its supported configuration list will be creat
 Follow these steps to bootstrap the child device:
 
 1. Create a `c8y-configuration-plugin.toml` file that contains the supported configuration list of the child-device 
-   i.e. a list of configuration files in the same format as specified in the [configuration management documentation](https://thin-edge.github.io/thin-edge.io/html/howto-guides/025_config_management_plugin.html) as follows:
+    i.e. a list of configuration files in the same format as specified in the [configuration management documentation](https://thin-edge.github.io/thin-edge.io/html/howto-guides/025_config_management_plugin.html) as follows:
 
-   ```toml title="file: c8y-configuration-plugin.toml"
-   files = [
-     {path = '/path/to/some/config', type = 'config1'},
-   ]
-   ```
+    ```toml title="file: c8y-configuration-plugin.toml"
+    files = [
+      {path = '/path/to/some/config', type = 'config1'},
+    ]
+    ```
 
-   * `path` is the full path to the configuration file on the child-device file system.
-   * `type` is a unique alias for each file entry which will be used to represent that file in Cumulocity IoT.
+    * `path` is the full path to the configuration file on the child-device file system.
+    * `type` is a unique alias for each file entry which will be used to represent that file in Cumulocity IoT.
 
     **Example**
 
@@ -206,7 +206,7 @@ Following these steps, a configuration file from the child-device will be reques
     ```
 
     The `config_snapshot` requests will be received by this subscriber.
-2. In Cumulocity IoT, navigate to `Device Management` &rarr; `Devices` &rarr; `All Devices` &rarr; select the thin-edge device &rarr; `Child devices` &rarr; select the child-device (`child1`) &rarr; `Configuration`
+2. In Cumulocity IoT, navigate to `Device Management` &rarr; `Devices` &rarr; `All Devices` &rarr; `select the thin-edge device` &rarr; `Child devices` &rarr; select the child-device (`child1`) &rarr; `Configuration`
 3. Select the config file type (`config1`) from the list of configuration files under the `DEVICE-SUPPORTED CONFIGURATIONS` and then click on the `Get snapshot from device` button.
    
     ![get-config-snapshot](../../start/images/get-config-snapshot.png)
@@ -378,15 +378,15 @@ Performing config update is an 8-step process:
 8. Send a "successful" operation status update via MQTT
 
     Once the update is applied, send a "successful" MQTT status message as follows:
-   
+
     **Topic**
-   
+
     ```text
-    tedge/{child-d}/commands/res/config_update
+    tedge/{child-id}/commands/res/config_update
     ```
-   
+
     **Payload**
-   
+
     ```json
     {
       "status": "successful",
@@ -394,15 +394,15 @@ Performing config update is an 8-step process:
       "path": "/child/local/fs/path"
     }
     ```
-   
+
     **Example**
 
     ```sh te2mqtt
     tedge mqtt pub "tedge/child1/commands/res/config_update" '{"status": "successful", "path": "/home/pi/config/config1", "type": "config1"}'
     ```
-   
+
     If there are any failures while downloading and applying the update, fail the operation in Cumulocity IoT by sending a "failed" status update with the `reason` to the same topic as follows:
-   
+
     ```json
     {
       "status": "failed",
@@ -411,10 +411,10 @@ Performing config update is an 8-step process:
       "reason": "Download failed"
     }
     ```
-   
+
     **Example**
 
-    ```sh
+    ```sh te2mqtt
     tedge mqtt pub "tedge/child1/commands/res/config_update" '{"status": "failed", "reason": "Download failed", "path": "/home/pi/config/config1", "type": "config1"}'
     ```
 
