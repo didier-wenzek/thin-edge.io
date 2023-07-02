@@ -55,7 +55,7 @@ Now use `tedge mqtt pub 'tedge/measurements' '{"temperature": 21.3}'` to publish
 
 All messages from sub command are printed to `stdout` and can be captured to a file if you need to:
 
-```sh
+```sh te2mqtt
 tedge mqtt sub '#' > filename.mqtt
 ```
 
