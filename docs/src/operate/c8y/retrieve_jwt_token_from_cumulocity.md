@@ -17,7 +17,7 @@ Follow the below steps in order to retrieve the token from the Cumulocity cloud 
 
 1. Subscribe to token topic
 
-    ```sh
+    ```sh te2mqtt
     tedge mqtt sub c8y/s/dat --no-topic
     ```
 
