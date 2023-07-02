@@ -194,7 +194,7 @@ Follow these steps to bootstrap the child device:
 
 4. Verify that the configuration list appears in Cumulocity under the child device's `Configuration` tab under `DEVICE-SUPPORTED CONFIGURATIONS` as follows: 
 
-   ![get-config-snapshot-list](../../start/images/get-config-snapshot-list.png)
+    ![get-config-snapshot-list](../../start/images/get-config-snapshot-list.png)
 
 ## Step 2: Get configuration snapshot from the child device 
 
