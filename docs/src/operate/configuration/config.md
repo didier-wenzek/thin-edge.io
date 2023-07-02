@@ -20,7 +20,7 @@ To set a value in `tedge.toml` using the `tedge` CLI, you can run:
 sudo tedge config set c8y.url mytenant.cumulocity.com
 ```
 
-The command abo e will set the Cumulocity tenant URL (`c8y.url`) to `mytenant.cumulocity.com` and write the result to [`/etc/tedge/tedge.toml`](#tedgetoml).
+The command will set the Cumulocity tenant URL (`c8y.url`) to `mytenant.cumulocity.com` and write the result to [`/etc/tedge/tedge.toml`](#tedgetoml).
 
 To read the value, run:
 
