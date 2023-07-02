@@ -4,9 +4,9 @@ tags: [Installation]
 sidebar_position: 1
 ---
 
-# How to install thin-edge.io?
+# How to install `thin-edge.io`?
 
-## Install via script
+## Installation with get-thin-edge_io.sh script
 
 There are two possibilities to install thin-edge.io, the easiest way is to use the installation script with this command:
 
@@ -16,24 +16,24 @@ curl -fsSL https://raw.githubusercontent.com/thin-edge/thin-edge.io/main/get-thi
 
 You can execute that command on your device and it will do all required steps for an initial setup.
 
-:::note
+```admonish note
 If you want to get a specific version, append the `<version>` 3 digits (e.g. `0.7.3`):
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/thin-edge/thin-edge.io/main/get-thin-edge_io.sh | sudo sh -s <version>
+> ```sh
+> curl -fsSL https://raw.githubusercontent.com/thin-edge/thin-edge.io/main/get-thin-edge_io.sh | sudo sh -s <version>
+> ```
 ```
-:::
 
 If you prefer to have a little more control over the installation or the script did not work for you,
 please go on with the [manual installation steps](#manual-installation-steps).
 
-## Upgrade via script
+## Upgrade thin-edge.io with get-thin-edge_io.sh script
 
 If you already have `thin-edge.io` on your device, to upgrade `thin-edge.io`,
 the easiest way is to use the same script as the installation. Follow the steps below.
 There is no need to remove old version.
 
-:::note
+```admonish note
 For version **0.7.7 or lower, to upgrade `thin-edge.io` from these versions,
 all thin-edge.io components **must be stopped** before upgrading.
 
@@ -42,20 +42,20 @@ The components are:
 
 To stop `tedge-mapper-c8y`, `tedge-agent`, `tedge-mapper-az`, `tedge-mapper-aws`, you can simply run the commands below.
 
-```sh
-sudo tedge disconnect c8y
-sudo tedge disconnect az
-sudo tedge disconnect aws
-```
+> ```sh
+> sudo tedge disconnect c8y
+> sudo tedge disconnect az
+> sudo tedge disconnect aws
+> ```
 
 To stop each component one by one, this is an example how to stop them with `systemctl`:
 
-```sh
-sudo systemctl stop tedge-mapper-c8y
-sudo systemctl stop tedge-agent
-sudo systemctl stop c8y-log-plugin
+> ```sh
+> systemctl stop tedge-mapper-c8y
+> systemctl stop tedge-agent
+> systemctl stop c8y-log-plugin
+> ```
 ```
-:::
 
 Run `get-thin-edge_io.sh` script as below to upgrade to the latest version.
 
@@ -63,15 +63,15 @@ Run `get-thin-edge_io.sh` script as below to upgrade to the latest version.
 curl -fsSL https://raw.githubusercontent.com/thin-edge/thin-edge.io/main/get-thin-edge_io.sh | sudo sh -s
 ```
 
-:::note
+```admonish note
 If you want to upgrade to a specific version, append the `<version>` 3 digits, e.g. `0.7.3`:
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/thin-edge/thin-edge.io/main/get-thin-edge_io.sh | sudo sh -s <version>
+> ```sh
+> curl -fsSL https://raw.githubusercontent.com/thin-edge/thin-edge.io/main/get-thin-edge_io.sh | sudo sh -s <version>
+> ```
 ```
-:::
 
-## Manual installation
+## thin-edge.io manual installation
 
 To install thin edge package it is required to use `curl` to download the package and `dpkg` to install it.
 
@@ -81,14 +81,18 @@ thin-edge.io has single dependency and it is `mosquitto` used for communication 
 `mosquitto` can be installed with your package manager. For apt the command may look as following:
 
 ```sh
+apt install mosquitto
+```
+
+```admonish note
+Some OSes may require you to use `sudo` to install packages.
+```
+
+```sh
 sudo apt install mosquitto
 ```
 
-:::note
-Some OSes may require you to use `sudo` to install packages.
-:::
-
-### Download package
+### thin-edge.io package download
 
 thin-edge.io package is in thin-edge.io repository on GitHub: [thin-edge.io](https://github.com/thin-edge/thin-edge.io/releases).
 
@@ -98,49 +102,55 @@ To download the package from github repository use following command (use desire
 curl -LJO https://github.com/thin-edge/thin-edge.io/releases/download/<package>_<version>_<arch>.deb
 ```
 
-Where:
+where:
 - `version` -> thin-edge.io version in x.x.x format
 - `arch` -> architecture type (amd64, armhf, arm64)
 
-```sh title="Example"
+Eg:
+
+```sh
 curl -LJO https://github.com/thin-edge/thin-edge.io/releases/download/0.9.0/tedge_0.9.0_armhf.deb
 ```
 
 and for `mapper`:
 
-```sh title="Example"
+```sh
 curl -LJO https://github.com/thin-edge/thin-edge.io/releases/download/0.9.0/tedge-mapper_0.9.0_armhf.deb
 ```
 
-### Install downloaded package
+### thin-edge.io package installation
 
 Now, we have downloaded the package we can proceed to installation. First we will install cli tool `tedge`.
 
-:::note
+```admonish note
 Some OSes may require you to use `sudo` to install packages and therefore all following commands may need `sudo`.
-:::
+```
 
 To install `tedge` use following command:
 
 ```sh
-sudo dpkg -i tedge_<version>_<arch>.deb
+dpkg -i tedge_<version>_<arch>.deb
 ```
 
-```sh title="Example"
-sudo dpkg -i tedge_0.5.0_armhf.deb
+Eg:
+
+```sh
+dpkg -i tedge_0.5.0_armhf.deb
 ```
 
 To install mapper for thin-edge.io do:
 
 ```sh
-sudo dpkg -i tedge-mapper_<version>_<arch>.deb
+dpkg -i tedge-mapper_<version>_<arch>.deb
 ```
 
-```sh title="Example"
-sudo dpkg -i tedge-mapper_0.9.0_armhf.deb
+Eg:
+
+```sh
+dpkg -i tedge-mapper_0.9.0_armhf.deb
 ```
 
-## Uninstall
+## Uninstall `thin-edge.io`
 
 The `thin-edge.io` can be uninstalled using a script, that can be downloaded
 from below mentioned location.
@@ -163,23 +173,23 @@ COMMANDS:
     purge      Uninstall thin-edge.io and also remove configuration files
 ```
 
-:::note
+```admonish note
 The uninstall script removes/purges the core thin-edge.io packages like `tedge,
 tedge-mapper, and tedge-agent` as well as thin-edge.io plugins like `tedge-apt-plugin,
 c8y-log-plugin, c8y-configuration-plugin` etc.
-:::
+```
 
-### Remove
+### `Remove` thin-edge.io
 
 Use uninstall script as shown below just to `remove` the `thin-edge.io` packages.
 
 ```sh
-sudo ./uninstall-thin-edge_io.sh remove
+./uninstall-thin-edge_io.sh remove
 ```
 
-:::note
+```admonish note
 `./uninstall-thin-edge_io.sh remove` removes just the thin-edge.io packages and does not remove the `configuration` files.
-:::
+```
 
 The same thing can also be executed using a one-liner to download and run the script.
 
@@ -187,13 +197,13 @@ The same thing can also be executed using a one-liner to download and run the sc
 curl -sSL https://raw.githubusercontent.com/thin-edge/thin-edge.io/main/uninstall-thin-edge_io.sh | sudo sh -s remove
 ```
 
-### Purge
+### `Purge` thin-edge.io
 
 Use uninstall script as shown below to remove the thin-edge.io as well as to remove the `configuration` files that are
 associated with these thin-edge.io packages.
 
 ```sh
-sudo ./uninstall-thin-edge_io.sh purge
+./uninstall-thin-edge_io.sh purge
 ```
 
 The same thing can also be executed using a one-liner to download and run the script.
