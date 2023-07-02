@@ -165,7 +165,7 @@ We now are ready to connect the device to Cumulocity IoT. This can be achieved v
 sudo tedge connect c8y
 ```
 
-When the connection is established, the device will be created in Cumulocity IoT. When you go to Device Management -> Devices -> All devices, the device is visible in the list.
+When the connection is established, the device will be created in Cumulocity IoT. When you go to Device Management &rarr; Devices &rarr; All devices, the device is visible in the list.
 
 ![NewDevice](./images/DevicesList.png)
 
@@ -228,7 +228,7 @@ So the door open event described above can be sent as follows:
 tedge mqtt pub tedge/events/door '{"text": "A door was closed","time": "2022-06-10T05:30:45+00:00"}'
 ```
 
-When you go to events (`Device management -> your device -> events `), you should see this:
+When you go to events (`Device management` &rarr; `your device` &rarr; `events`), you should see this:
 
 ![Sending Events](./images/SendingEvents.png)
 
@@ -351,7 +351,7 @@ sudo tedge connect c8y
 
 1. Go to Cumulocity IoT
 
-2. Go to `Management` -> `Software repository` (left in the menu) and click `Add software` at the right of the top menu bar.
+2. Go to `Management` &rarr; `Software repository` (left in the menu) and click `Add software` at the right of the top menu bar.
 
 3. In the dialog box, enter a name for the software and confirm it by clicking `Add new`, a description and its version.
 
@@ -428,9 +428,9 @@ In this tutorial the last option is explained, there are some steps to be taken:
 ![Configuration Management](./images/ConfigurationManagement.png)
 
 
-1. Save the configuration file to the repository (`Device management -> configuration`. In the list of configuration files  pick  a file to change and click on `Save to repository`).
+1. Save the configuration file to the repository (`Device management` &rarr; `configuration`. In the list of configuration files  pick  a file to change and click on `Save to repository`).
 
-2. Go to `Management -> configuration snapshots repository`.
+2. Go to `Management` &rarr; `configuration` snapshots repository.
 3. Download the configuration file which needs to be changed (the one you saved to the repository in step 1).
 4. Edit this file as needed.
 5. Click on `Add configuration snapshot` (top right).
@@ -456,13 +456,13 @@ To change the collectd metrics of the device, which are displayed in Cumulocity 
 
     ```toml title="file: /etc/tedge/c8y/c8y-configuration-plugin.toml"
     files = [
-        # ...
-        { path = '/etc/collectd/collectd.conf', type = 'collectd.conf' },
+      # ...
+      {path = '/etc/collectd/collectd.conf', type = 'collectd.conf'},
     ]
     ```
 
 2. Save the configuration file to the repository
-3. Go to `Management -> configuration` snapshots repository
+3. Go to `Management` &rarr; `configuration` snapshots repository
 4. Download the configuration file which needs to be changed
 5. Edit this file as needed
 6. Click on ``` Add configuration snapshot ``` (top right)
