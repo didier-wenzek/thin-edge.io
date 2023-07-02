@@ -118,7 +118,7 @@ __Important notes__ You can enable or disable the collectd plugins of your choic
               Target "stop"
           </Rule>
       </Chain>
-    ```
+      ```
 
 ## Enable thin-edge monitoring
 

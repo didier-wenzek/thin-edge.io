@@ -47,7 +47,7 @@ If multiple messages are sent to the same alarm topic, the last alarm is conside
 
 Here is a sample alarm raised for `temperature_high` alarm type with `critical` severity:
 
-```json title="Topic"
+```text title="Topic"
 tedge/alarms/critical/temperature_high
 ```
 
