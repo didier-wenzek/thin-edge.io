@@ -95,6 +95,7 @@ async fn convert_incoming_software_update_request() -> Result<(), DynError> {
                 status: CommandStatus::Scheduled,
                 update_list: vec![debian_list],
                 failures: vec![],
+                log_path: None,
             },
         }])
         .await;

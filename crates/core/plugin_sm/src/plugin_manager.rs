@@ -276,6 +276,7 @@ impl ExternalPlugins {
             }
         }
 
+        response.set_log_path(log_file.path());
         if let Some(reason) = ExternalPlugins::error_message(log_file.path(), error_count) {
             response.with_error(reason)
         } else {

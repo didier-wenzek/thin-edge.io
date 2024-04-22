@@ -14,6 +14,8 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
+use std::path::Path;
+use std::path::PathBuf;
 use time::OffsetDateTime;
 
 /// A command instance with its target and its current state of execution
@@ -311,7 +313,7 @@ impl SoftwareListCommand {
 /// Command to install/remove software packages on a device
 pub type SoftwareUpdateCommand = Command<SoftwareUpdateCommandPayload>;
 
-/// Payload of a [SoftwareListCommand]
+/// Payload of a [SoftwareUpdateCommand]
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SoftwareUpdateCommandPayload {
@@ -323,6 +325,9 @@ pub struct SoftwareUpdateCommandPayload {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub failures: Vec<SoftwareRequestResponseSoftwareList>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<PathBuf>,
 }
 
 impl<'a> Jsonify<'a> for SoftwareUpdateCommandPayload {}
@@ -431,6 +436,10 @@ impl SoftwareUpdateCommand {
                     .filter_map(|update| update.into())
                     .collect::<Vec<SoftwareModuleItem>>(),
             })
+    }
+
+    pub fn set_log_path(&mut self, path: &Path) {
+        self.payload.log_path = Some(path.into())
     }
 }
 
@@ -659,6 +668,23 @@ pub enum CommandStatus {
     /// Unknown status used by a custom workflow
     #[serde(other)]
     Unknown,
+}
+
+impl CommandStatus {
+    pub fn is_terminal_status(&self) -> bool {
+        matches!(
+            self,
+            CommandStatus::Successful | CommandStatus::Failed { reason: _ }
+        )
+    }
+
+    pub fn is_successful(&self) -> bool {
+        *self == CommandStatus::Successful
+    }
+
+    pub fn is_failed(&self) -> bool {
+        matches!(self, CommandStatus::Failed { reason: _ })
+    }
 }
 
 fn default_failure_reason() -> String {
@@ -929,6 +955,7 @@ mod tests {
             status: CommandStatus::Init,
             update_list: vec![debian_list, docker_list],
             failures: vec![],
+            log_path: None,
         };
 
         let expected_json = r#"{"status":"init","updateList":[{"type":"debian","modules":[{"name":"debian1","version":"0.0.1","action":"install"},{"name":"debian2","version":"0.0.2","action":"install"}]},{"type":"docker","modules":[{"name":"docker1","version":"0.0.1","url":"test.com","action":"remove"}]}]}"#;

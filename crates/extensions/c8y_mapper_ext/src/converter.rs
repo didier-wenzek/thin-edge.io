@@ -86,6 +86,7 @@ use tedge_api::pending_entity_store::PendingEntityData;
 use tedge_api::DownloadInfo;
 use tedge_api::EntityStore;
 use tedge_api::Jsonify;
+use tedge_config::AutoLogUpload;
 use tedge_config::SoftwareManagementApiFlag;
 use tedge_config::TEdgeConfigError;
 use tedge_config::TopicPrefix;
@@ -1517,7 +1518,7 @@ impl CumulocityConverter {
     }
 
     async fn publish_software_update_status(
-        &self,
+        &mut self,
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
@@ -1540,7 +1541,7 @@ impl CumulocityConverter {
             .and_then(|entity| C8yTopic::smartrest_response_topic(entity, &self.config.c8y_prefix))
             .ok_or_else(|| Error::UnknownEntity(target.to_string()))?;
 
-        match response.status() {
+        let messages = match response.status() {
             CommandStatus::Init | CommandStatus::Scheduled | CommandStatus::Unknown => {
                 // The command has not been processed yet
                 Ok(vec![])
@@ -1572,6 +1573,55 @@ impl CumulocityConverter {
                     response.clearing_message(&self.mqtt_schema),
                     self.request_software_list(target),
                 ])
+            }
+        };
+
+        if response.status().is_terminal_status() && response.payload.log_path.is_some() {
+            self.upload_operation_log(
+                target,
+                OperationType::SoftwareUpdate,
+                cmd_id,
+                &response.status(),
+                &response.payload.log_path.unwrap(),
+            )
+            .await;
+        }
+
+        messages
+    }
+
+    async fn upload_operation_log(
+        &mut self,
+        target: &EntityTopicId,
+        op_type: OperationType,
+        cmd_id: &str,
+        cmd_status: &CommandStatus,
+        log_path: &Path,
+    ) {
+        if target == self.entity_store.main_device()
+            && cmd_status.is_terminal_status()
+            && (self.config.auto_log_upload == AutoLogUpload::Always
+                || (self.config.auto_log_upload == AutoLogUpload::OnFailure
+                    && cmd_status.is_failed()))
+        {
+            match tokio::fs::read_to_string(&log_path).await {
+                Ok(log_content) => {
+                    if let Err(err) = self
+                        .http_proxy
+                        .upload_log_binary(
+                            &op_type.to_string(),
+                            &log_content,
+                            self.device_name.clone(),
+                        )
+                        .await
+                    {
+                        error!("Log log upload failed for {} with {}", cmd_id, err);
+                    }
+                }
+                Err(err) => error!(
+                    "Failed to read operation log file at {:?} due to: {}",
+                    &log_path, err
+                ),
             }
         }
     }
@@ -1704,6 +1754,7 @@ pub(crate) mod tests {
     use tedge_api::mqtt_topics::MqttSchema;
     use tedge_api::mqtt_topics::OperationType;
     use tedge_api::SoftwareUpdateCommand;
+    use tedge_config::AutoLogUpload;
     use tedge_config::SoftwareManagementApiFlag;
     use tedge_config::TEdgeConfig;
     use tedge_mqtt_ext::test_helpers::assert_messages_matching;
@@ -3277,6 +3328,7 @@ pub(crate) mod tests {
             false,
             SoftwareManagementApiFlag::Advanced,
             true,
+            AutoLogUpload::Never,
         )
     }
 
