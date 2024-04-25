@@ -8,6 +8,7 @@ use c8y_api::smartrest::smartrest_serializer::succeed_operation_no_payload;
 use c8y_api::smartrest::smartrest_serializer::CumulocitySupportedOperations;
 use tedge_api::commands::FirmwareInfo;
 use tedge_api::commands::FirmwareUpdateCmdPayload;
+use tedge_api::commands::GenericCommandPayload;
 use tedge_api::entity_store::EntityExternalId;
 use tedge_api::mqtt_topics::Channel;
 use tedge_api::mqtt_topics::ChannelFilter::Command;
@@ -64,6 +65,7 @@ impl CumulocityConverter {
             remote_url: firmware_request.url,
             name: firmware_request.name,
             version: firmware_request.version,
+            log_path: None,
         };
 
         // Command messages must be retained
@@ -80,12 +82,12 @@ impl CumulocityConverter {
         &mut self,
         topic_id: &EntityTopicId,
         message: &MqttMessage,
-    ) -> Result<Vec<MqttMessage>, ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
         if !self.config.capabilities.firmware_update {
             warn!(
                 "Received a firmware_update command, however, firmware_update feature is disabled"
             );
-            return Ok(vec![]);
+            return Ok((vec![], None));
         }
 
         let sm_topic = self.smartrest_publish_topic_for_entity(topic_id)?;
@@ -143,7 +145,7 @@ impl CumulocityConverter {
             }
         };
 
-        Ok(messages)
+        Ok((messages, None))
     }
 
     pub fn register_firmware_update_operation(

@@ -9,6 +9,7 @@ use c8y_api::smartrest::smartrest_serializer::CumulocitySupportedOperations;
 use std::sync::Arc;
 use tedge_api::commands::CommandStatus;
 use tedge_api::commands::ConfigUpdateCmdPayload;
+use tedge_api::commands::GenericCommandPayload;
 use tedge_api::entity_store::EntityExternalId;
 use tedge_api::entity_store::EntityMetadata;
 use tedge_api::mqtt_topics::Channel;
@@ -48,10 +49,10 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         _cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<Vec<MqttMessage>, ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
         if !self.config.capabilities.config_update {
             warn!("Received a config_update command, however, config_update feature is disabled");
-            return Ok(vec![]);
+            return Ok((vec![], None));
         }
 
         let sm_topic = self.smartrest_publish_topic_for_entity(topic_id)?;
@@ -91,7 +92,7 @@ impl CumulocityConverter {
             }
         };
 
-        Ok(messages)
+        Ok((messages, None))
     }
 
     /// Upon receiving a SmartREST c8y_DownloadConfigFile request, convert it to a message on the
@@ -150,6 +151,7 @@ impl CumulocityConverter {
             remote_url,
             config_type: config_download_request.config_type.clone(),
             path: None,
+            log_path: None,
         };
 
         // Command messages must be retained

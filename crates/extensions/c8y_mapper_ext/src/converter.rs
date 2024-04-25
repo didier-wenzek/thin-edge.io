@@ -65,6 +65,7 @@ use std::sync::Arc;
 use tedge_actors::LoggingSender;
 use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
+use tedge_api::commands::GenericCommandPayload;
 use tedge_api::commands::RestartCommand;
 use tedge_api::commands::SoftwareCommandMetadata;
 use tedge_api::commands::SoftwareListCommand;
@@ -1090,7 +1091,7 @@ impl CumulocityConverter {
 
             Channel::Command { operation, cmd_id } if self.command_id.is_generator_of(cmd_id) => {
                 self.active_commands.insert(cmd_id.clone());
-                match operation {
+                let res = match operation {
                     OperationType::Restart => {
                         self.publish_restart_operation_status(&source, cmd_id, message)
                             .await
@@ -1118,7 +1119,17 @@ impl CumulocityConverter {
                         self.handle_firmware_update_state_change(&source, message)
                             .await
                     }
-                    _ => Ok(vec![]),
+                    _ => Ok((vec![], None)),
+                };
+
+                match res {
+                    Ok((messages, command)) => {
+                        if let Some(command) = command {
+                            self.upload_operation_log(command).await;
+                        }
+                        Ok(messages)
+                    }
+                    Err(e) => Err(e),
                 }
             }
 
@@ -1418,7 +1429,7 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<Vec<MqttMessage>, ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
         let command = match RestartCommand::try_from(
             target.clone(),
             cmd_id.to_owned(),
@@ -1427,7 +1438,7 @@ impl CumulocityConverter {
             Some(command) => command,
             None => {
                 // The command has been fully processed
-                return Ok(vec![]);
+                return Ok((vec![], None));
             }
         };
         let topic = self
@@ -1436,20 +1447,20 @@ impl CumulocityConverter {
             .and_then(|entity| C8yTopic::smartrest_response_topic(entity, &self.config.c8y_prefix))
             .ok_or_else(|| Error::UnknownEntity(target.to_string()))?;
 
-        match command.status() {
+        let messages = match command.status() {
             CommandStatus::Executing => {
                 let smartrest_set_operation =
                     set_operation_executing(CumulocitySupportedOperations::C8yRestartRequest);
-                Ok(vec![MqttMessage::new(&topic, smartrest_set_operation)])
+                vec![MqttMessage::new(&topic, smartrest_set_operation)]
             }
             CommandStatus::Successful => {
                 let smartrest_set_operation =
                     succeed_operation_no_payload(CumulocitySupportedOperations::C8yRestartRequest);
 
-                Ok(vec![
+                vec![
                     command.clearing_message(&self.mqtt_schema),
                     MqttMessage::new(&topic, smartrest_set_operation),
-                ])
+                ]
             }
             CommandStatus::Failed { ref reason } => {
                 let smartrest_set_operation = fail_operation(
@@ -1457,16 +1468,18 @@ impl CumulocityConverter {
                     &format!("Restart Failed: {reason}"),
                 );
 
-                Ok(vec![
+                vec![
                     command.clearing_message(&self.mqtt_schema),
                     MqttMessage::new(&topic, smartrest_set_operation),
-                ])
+                ]
             }
             _ => {
                 // The other states are ignored
-                Ok(vec![])
+                vec![]
             }
-        }
+        };
+
+        Ok((messages, Some(command.into())))
     }
 
     fn register_custom_operation(
@@ -1522,8 +1535,8 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<Vec<MqttMessage>, ConversionError> {
-        let response = match SoftwareUpdateCommand::try_from(
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+        let command = match SoftwareUpdateCommand::try_from(
             target.clone(),
             cmd_id.to_string(),
             message.payload_bytes(),
@@ -1531,7 +1544,7 @@ impl CumulocityConverter {
             Some(command) => command,
             None => {
                 // The command has been fully processed
-                return Ok(vec![]);
+                return Ok((vec![], None));
             }
         };
 
@@ -1541,81 +1554,62 @@ impl CumulocityConverter {
             .and_then(|entity| C8yTopic::smartrest_response_topic(entity, &self.config.c8y_prefix))
             .ok_or_else(|| Error::UnknownEntity(target.to_string()))?;
 
-        let messages = match response.status() {
+        let messages = match command.status() {
             CommandStatus::Init | CommandStatus::Scheduled | CommandStatus::Unknown => {
                 // The command has not been processed yet
-                Ok(vec![])
+                vec![]
             }
             CommandStatus::Executing => {
                 let smartrest_set_operation_status =
                     set_operation_executing(CumulocitySupportedOperations::C8ySoftwareUpdate);
-                Ok(vec![MqttMessage::new(
-                    &topic,
-                    smartrest_set_operation_status,
-                )])
+                vec![MqttMessage::new(&topic, smartrest_set_operation_status)]
             }
             CommandStatus::Successful => {
                 let smartrest_set_operation =
                     succeed_operation_no_payload(CumulocitySupportedOperations::C8ySoftwareUpdate);
 
-                Ok(vec![
+                vec![
                     MqttMessage::new(&topic, smartrest_set_operation),
-                    response.clearing_message(&self.mqtt_schema),
+                    command.clearing_message(&self.mqtt_schema),
                     self.request_software_list(target),
-                ])
+                ]
             }
             CommandStatus::Failed { reason } => {
                 let smartrest_set_operation =
                     fail_operation(CumulocitySupportedOperations::C8ySoftwareUpdate, &reason);
 
-                Ok(vec![
+                vec![
                     MqttMessage::new(&topic, smartrest_set_operation),
-                    response.clearing_message(&self.mqtt_schema),
+                    command.clearing_message(&self.mqtt_schema),
                     self.request_software_list(target),
-                ])
+                ]
             }
         };
 
-        if response.status().is_terminal_status() && response.payload.log_path.is_some() {
-            self.upload_operation_log(
-                target,
-                OperationType::SoftwareUpdate,
-                cmd_id,
-                &response.status(),
-                &response.payload.log_path.unwrap(),
-            )
-            .await;
-        }
-
-        messages
+        Ok((messages, Some(command.into())))
     }
 
-    async fn upload_operation_log(
-        &mut self,
-        target: &EntityTopicId,
-        op_type: OperationType,
-        cmd_id: &str,
-        cmd_status: &CommandStatus,
-        log_path: &Path,
-    ) {
-        if target == self.entity_store.main_device()
-            && cmd_status.is_terminal_status()
+    async fn upload_operation_log(&mut self, command: GenericCommandPayload) {
+        if command.target == *self.entity_store.main_device()
+            && command.status.is_terminal_status()
+            && command.log_path.is_some()
             && (self.config.auto_log_upload == AutoLogUpload::Always
                 || (self.config.auto_log_upload == AutoLogUpload::OnFailure
-                    && cmd_status.is_failed()))
+                    && command.status.is_failed()))
         {
+            let log_path = command.log_path.unwrap();
             match tokio::fs::read_to_string(&log_path).await {
                 Ok(log_content) => {
                     if let Err(err) = self
                         .http_proxy
                         .upload_log_binary(
-                            &op_type.to_string(),
+                            &command.op_type.to_string(),
                             &log_content,
                             self.device_name.clone(),
                         )
                         .await
                     {
-                        error!("Log log upload failed for {} with {}", cmd_id, err);
+                        error!("Log log upload failed for {} with {}", command.cmd_id, err);
                     }
                 }
                 Err(err) => error!(
@@ -1631,8 +1625,8 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<Vec<MqttMessage>, ConversionError> {
-        let response = match SoftwareListCommand::try_from(
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+        let command = match SoftwareListCommand::try_from(
             target.clone(),
             cmd_id.to_owned(),
             message.payload_bytes(),
@@ -1640,16 +1634,16 @@ impl CumulocityConverter {
             Some(command) => command,
             None => {
                 // The command has been fully processed
-                return Ok(Vec::new());
+                return Ok((Vec::new(), None));
             }
         };
 
-        match response.status() {
+        let messages = match command.status() {
             CommandStatus::Successful => {
                 // Send a list via HTTP to support backwards compatibility to c8y < 10.14
                 if self.config.software_management_api == SoftwareManagementApiFlag::Legacy {
                     if let Some(device) = self.entity_store.get(target) {
-                        let c8y_software_list: C8yUpdateSoftwareListResponse = (&response).into();
+                        let c8y_software_list: C8yUpdateSoftwareListResponse = (&command).into();
                         self.http_proxy
                             .send_software_list_http(
                                 c8y_software_list,
@@ -1657,7 +1651,7 @@ impl CumulocityConverter {
                             )
                             .await?;
                     }
-                    return Ok(vec![response.clearing_message(&self.mqtt_schema)]);
+                    return Ok((vec![command.clearing_message(&self.mqtt_schema)], None));
                 }
 
                 // Send a list via SmartREST, "advanced software list" feature c8y >= 10.14
@@ -1669,19 +1663,19 @@ impl CumulocityConverter {
                     })
                     .ok_or_else(|| Error::UnknownEntity(target.to_string()))?;
                 let payloads =
-                    get_advanced_software_list_payloads(&response, SOFTWARE_LIST_CHUNK_SIZE);
+                    get_advanced_software_list_payloads(&command, SOFTWARE_LIST_CHUNK_SIZE);
 
                 let mut messages: Vec<MqttMessage> = Vec::new();
                 for payload in payloads {
                     messages.push(MqttMessage::new(&topic, payload))
                 }
-                messages.push(response.clearing_message(&self.mqtt_schema));
-                Ok(messages)
+                messages.push(command.clearing_message(&self.mqtt_schema));
+                messages
             }
 
             CommandStatus::Failed { reason } => {
                 error!("Fail to list installed software packages: {reason}");
-                Ok(vec![response.clearing_message(&self.mqtt_schema)])
+                vec![command.clearing_message(&self.mqtt_schema)]
             }
 
             CommandStatus::Init
@@ -1689,9 +1683,11 @@ impl CumulocityConverter {
             | CommandStatus::Executing
             | CommandStatus::Unknown => {
                 // C8Y doesn't expect any message to be published
-                Ok(Vec::new())
+                Vec::new()
             }
-        }
+        };
+
+        Ok((messages, Some(command.into())))
     }
 }
 

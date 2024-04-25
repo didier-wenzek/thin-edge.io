@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
 use tedge_api::commands::ConfigSnapshotCmdPayload;
+use tedge_api::commands::GenericCommandPayload;
 use tedge_api::mqtt_topics::Channel;
 use tedge_api::mqtt_topics::ChannelFilter;
 use tedge_api::mqtt_topics::EntityFilter;
@@ -81,6 +82,7 @@ impl CumulocityConverter {
             tedge_url: Some(tedge_url),
             config_type: config_upload_request.config_type,
             path: None,
+            log_path: None,
         };
 
         // Command messages must be retained
@@ -98,12 +100,12 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<Vec<MqttMessage>, ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
         if !self.config.capabilities.config_snapshot {
             warn!(
                 "Received a config_snapshot command, however, config_snapshot feature is disabled"
             );
-            return Ok(vec![]);
+            return Ok((vec![], None));
         }
 
         let target = self.entity_store.try_get(topic_id)?;
@@ -173,7 +175,7 @@ impl CumulocityConverter {
             }
         };
 
-        Ok(messages)
+        Ok((messages, None))
     }
 
     /// Resumes `config_snapshot` operation after required file was downloaded

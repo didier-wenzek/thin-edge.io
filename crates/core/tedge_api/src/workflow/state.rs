@@ -151,6 +151,10 @@ impl GenericCommandState {
         }
     }
 
+    pub fn update_with_key_value(self, key: &str, val: &str) -> Self {
+        self.update_with_json(json!({ key: val }))
+    }
+
     /// Update the command state with the outcome of a script
     pub fn update_with_script_output(
         self,

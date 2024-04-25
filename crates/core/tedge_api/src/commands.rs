@@ -205,6 +205,10 @@ pub trait CommandPayload {
             reason: reason.into(),
         });
     }
+
+    fn log_path(&self) -> Option<&Path>;
+
+    fn set_log_path(&mut self, path: &Path);
 }
 
 /// All the messages are serialized using json.
@@ -238,6 +242,26 @@ pub trait Jsonify<'a> {
     }
 }
 
+pub struct GenericCommandPayload {
+    pub target: EntityTopicId,
+    pub cmd_id: String,
+    pub op_type: OperationType,
+    pub status: CommandStatus,
+    pub log_path: Option<PathBuf>,
+}
+
+impl<T: CommandPayload> From<Command<T>> for GenericCommandPayload {
+    fn from(value: Command<T>) -> Self {
+        GenericCommandPayload {
+            target: value.target,
+            cmd_id: value.cmd_id,
+            op_type: T::operation_type(),
+            status: value.payload.status(),
+            log_path: value.payload.log_path().map(|p| p.to_path_buf()),
+        }
+    }
+}
+
 /// Command to request the list of software packages that are installed on a device
 pub type SoftwareListCommand = Command<SoftwareListCommandPayload>;
 
@@ -250,6 +274,9 @@ pub struct SoftwareListCommandPayload {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub current_software_list: Vec<SoftwareList>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<PathBuf>,
 }
 
 impl<'a> Jsonify<'a> for SoftwareListCommandPayload {}
@@ -265,6 +292,14 @@ impl CommandPayload for SoftwareListCommandPayload {
 
     fn set_status(&mut self, status: CommandStatus) {
         self.status = status
+    }
+
+    fn log_path(&self) -> Option<&Path> {
+        self.log_path.as_deref()
+    }
+
+    fn set_log_path(&mut self, path: &Path) {
+        self.log_path = Some(path.into())
     }
 }
 
@@ -343,6 +378,14 @@ impl CommandPayload for SoftwareUpdateCommandPayload {
 
     fn set_status(&mut self, status: CommandStatus) {
         self.status = status
+    }
+
+    fn log_path(&self) -> Option<&Path> {
+        self.log_path.as_deref()
+    }
+
+    fn set_log_path(&mut self, path: &Path) {
+        self.log_path = Some(path.into())
     }
 }
 
@@ -570,6 +613,7 @@ impl RestartCommand {
                 on_success,
                 on_error,
             }),
+            log_path: None,
         };
         Command {
             target,
@@ -595,6 +639,9 @@ pub struct RestartCommandPayload {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     context: Option<RestartContext>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<PathBuf>,
 }
 
 impl RestartCommandPayload {
@@ -602,6 +649,7 @@ impl RestartCommandPayload {
         RestartCommandPayload {
             status,
             context: None,
+            log_path: None,
         }
     }
 }
@@ -619,6 +667,14 @@ impl CommandPayload for RestartCommandPayload {
 
     fn set_status(&mut self, status: CommandStatus) {
         self.status = status
+    }
+
+    fn log_path(&self) -> Option<&Path> {
+        self.log_path.as_deref()
+    }
+
+    fn set_log_path(&mut self, path: &Path) {
+        self.log_path = Some(path.into())
     }
 }
 
@@ -740,6 +796,8 @@ pub struct LogUploadCmdPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search_text: Option<String>,
     pub lines: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<PathBuf>,
 }
 
 impl<'a> Jsonify<'a> for LogUploadCmdPayload {}
@@ -755,6 +813,14 @@ impl CommandPayload for LogUploadCmdPayload {
 
     fn set_status(&mut self, status: CommandStatus) {
         self.status = status
+    }
+
+    fn log_path(&self) -> Option<&Path> {
+        self.log_path.as_deref()
+    }
+
+    fn set_log_path(&mut self, path: &Path) {
+        self.log_path = Some(path.into())
     }
 }
 
@@ -780,6 +846,8 @@ pub struct ConfigSnapshotCmdPayload {
     pub config_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<PathBuf>,
 }
 
 impl<'a> Jsonify<'a> for ConfigSnapshotCmdPayload {}
@@ -795,6 +863,14 @@ impl CommandPayload for ConfigSnapshotCmdPayload {
 
     fn set_status(&mut self, status: CommandStatus) {
         self.status = status
+    }
+
+    fn log_path(&self) -> Option<&Path> {
+        self.log_path.as_deref()
+    }
+
+    fn set_log_path(&mut self, path: &Path) {
+        self.log_path = Some(path.into())
     }
 }
 
@@ -827,6 +903,8 @@ pub struct ConfigUpdateCmdPayload {
     pub config_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<PathBuf>,
 }
 
 impl<'a> Jsonify<'a> for ConfigUpdateCmdPayload {}
@@ -842,6 +920,14 @@ impl CommandPayload for ConfigUpdateCmdPayload {
 
     fn set_status(&mut self, status: CommandStatus) {
         self.status = status
+    }
+
+    fn log_path(&self) -> Option<&Path> {
+        self.log_path.as_deref()
+    }
+
+    fn set_log_path(&mut self, path: &Path) {
+        self.log_path = Some(path.into())
     }
 }
 
@@ -876,6 +962,8 @@ pub struct FirmwareUpdateCmdPayload {
     pub remote_url: String,
     pub name: String,
     pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<PathBuf>,
 }
 
 impl<'a> Jsonify<'a> for FirmwareUpdateCmdPayload {}
@@ -892,6 +980,14 @@ impl CommandPayload for FirmwareUpdateCmdPayload {
     fn set_status(&mut self, status: CommandStatus) {
         self.status = status
     }
+
+    fn log_path(&self) -> Option<&Path> {
+        self.log_path.as_deref()
+    }
+
+    fn set_log_path(&mut self, path: &Path) {
+        self.log_path = Some(path.into())
+    }
 }
 
 #[cfg(test)]
@@ -903,6 +999,7 @@ mod tests {
         let request = SoftwareListCommandPayload {
             status: CommandStatus::Init,
             current_software_list: vec![],
+            log_path: None,
         };
         let expected_json = r#"{"status":"init"}"#;
 
@@ -973,6 +1070,7 @@ mod tests {
         let request = SoftwareListCommandPayload {
             status: CommandStatus::Unknown,
             current_software_list: vec![],
+            log_path: None,
         };
 
         // The `CommandStatus::Unknown` variant is used when the status is unknown.

@@ -141,7 +141,8 @@ Publish and Verify Local Command
     END
 
 Validate operation log uploaded
-    ${operation_log_file}=    Execute Command    ls -t /var/log/tedge/agent/software-update-* | head -n 1    strip=${True}
+    # Find the latest workflow log for software update operation
+    ${operation_log_file}=    Execute Command    ls -t /var/log/tedge/agent/workflow-software_update-* | head -n 1    strip=${True}
     ${log_checksum}=    Execute Command    md5sum '${operation_log_file}' | cut -d' ' -f1    strip=${True}
     ${events}=    Cumulocity.Device Should Have Event/s
     ...    minimum=1
