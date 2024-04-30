@@ -9,7 +9,7 @@ use c8y_api::smartrest::smartrest_serializer::CumulocitySupportedOperations;
 use tedge_api::commands::FirmwareInfo;
 use tedge_api::commands::FirmwareUpdateCmd;
 use tedge_api::commands::FirmwareUpdateCmdPayload;
-use tedge_api::commands::GenericCommandPayload;
+use tedge_api::commands::GenericCommand;
 use tedge_api::entity_store::EntityExternalId;
 use tedge_api::mqtt_topics::Channel;
 use tedge_api::mqtt_topics::ChannelFilter::Command;
@@ -84,7 +84,7 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
         if !self.config.capabilities.firmware_update {
             warn!(
                 "Received a firmware_update command, however, firmware_update feature is disabled"

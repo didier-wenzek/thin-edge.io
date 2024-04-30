@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tedge_api::commands::CommandStatus;
 use tedge_api::commands::ConfigUpdateCmd;
 use tedge_api::commands::ConfigUpdateCmdPayload;
-use tedge_api::commands::GenericCommandPayload;
+use tedge_api::commands::GenericCommand;
 use tedge_api::entity_store::EntityExternalId;
 use tedge_api::entity_store::EntityMetadata;
 use tedge_api::mqtt_topics::Channel;
@@ -50,7 +50,7 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
         if !self.config.capabilities.config_update {
             warn!("Received a config_update command, however, config_update feature is disabled");
             return Ok((vec![], None));

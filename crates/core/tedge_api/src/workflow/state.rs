@@ -7,6 +7,7 @@ use crate::workflow::ExitHandlers;
 use crate::workflow::OperationName;
 use crate::workflow::StateExcerptError;
 use crate::workflow::WorkflowExecutionError;
+use camino::Utf8Path;
 use mqtt_channel::MqttMessage;
 use mqtt_channel::QoS::AtLeastOnce;
 use mqtt_channel::Topic;
@@ -16,6 +17,8 @@ use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::path::Path;
+use std::path::PathBuf;
 
 /// Generic command state that can be used to manipulate any type of command payload.
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -153,6 +156,10 @@ impl GenericCommandState {
 
     pub fn update_with_key_value(self, key: &str, val: &str) -> Self {
         self.update_with_json(json!({ key: val }))
+    }
+
+    pub fn set_log_path<P: AsRef<Utf8Path>>(self, path: P) -> Self {
+        self.update_with_key_value("logPath", path.as_ref().as_str())
     }
 
     /// Update the command state with the outcome of a script

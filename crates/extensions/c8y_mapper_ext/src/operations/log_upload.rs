@@ -15,7 +15,7 @@ use camino::Utf8PathBuf;
 use std::collections::HashMap;
 use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
-use tedge_api::commands::GenericCommandPayload;
+use tedge_api::commands::GenericCommand;
 use tedge_api::commands::LogMetadata;
 use tedge_api::commands::LogUploadCmd;
 use tedge_api::commands::LogUploadCmdPayload;
@@ -101,7 +101,7 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
         debug!("Handling log_upload command");
 
         if !self.config.capabilities.log_upload {

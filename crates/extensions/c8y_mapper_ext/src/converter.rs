@@ -65,7 +65,7 @@ use std::sync::Arc;
 use tedge_actors::LoggingSender;
 use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
-use tedge_api::commands::GenericCommandPayload;
+use tedge_api::commands::GenericCommand;
 use tedge_api::commands::RestartCommand;
 use tedge_api::commands::SoftwareCommandMetadata;
 use tedge_api::commands::SoftwareListCommand;
@@ -1429,7 +1429,7 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
         let command = match RestartCommand::try_from(
             target.clone(),
             cmd_id.to_owned(),
@@ -1535,7 +1535,7 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
         let command = match SoftwareUpdateCommand::try_from(
             target.clone(),
             cmd_id.to_string(),
@@ -1589,7 +1589,7 @@ impl CumulocityConverter {
         Ok((messages, Some(command.into())))
     }
 
-    async fn upload_operation_log(&mut self, command: GenericCommandPayload) {
+    async fn upload_operation_log(&mut self, command: GenericCommand) {
         if command.target == *self.entity_store.main_device()
             && command.status.is_terminal_status()
             && command.log_path.is_some()
@@ -1625,7 +1625,7 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandPayload>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
         let command = match SoftwareListCommand::try_from(
             target.clone(),
             cmd_id.to_owned(),

@@ -251,7 +251,7 @@ pub trait Jsonify<'a> {
     }
 }
 
-pub struct GenericCommandPayload {
+pub struct GenericCommand {
     pub target: EntityTopicId,
     pub cmd_id: String,
     pub op_type: OperationType,
@@ -259,9 +259,9 @@ pub struct GenericCommandPayload {
     pub log_path: Option<PathBuf>,
 }
 
-impl<T: CommandPayload> From<Command<T>> for GenericCommandPayload {
+impl<T: CommandPayload> From<Command<T>> for GenericCommand {
     fn from(value: Command<T>) -> Self {
-        GenericCommandPayload {
+        GenericCommand {
             target: value.target,
             cmd_id: value.cmd_id,
             op_type: T::operation_type(),
