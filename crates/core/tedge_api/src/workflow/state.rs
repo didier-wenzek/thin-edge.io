@@ -17,8 +17,6 @@ use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::path::Path;
-use std::path::PathBuf;
 
 /// Generic command state that can be used to manipulate any type of command payload.
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
