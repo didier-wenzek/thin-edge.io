@@ -206,8 +206,11 @@ pub trait CommandPayload {
         });
     }
 
+    /// Return the operation log path of the command
     fn log_path(&self) -> Option<&Path>;
 
+    /// Set the operation log path for the command.
+    /// To be set by the component processing the command, e.g: tedge-agent
     fn set_log_path(&mut self, path: &Path);
 }
 

@@ -17,6 +17,7 @@ use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
 use tedge_api::commands::GenericCommandPayload;
 use tedge_api::commands::LogMetadata;
+use tedge_api::commands::LogUploadCmd;
 use tedge_api::commands::LogUploadCmdPayload;
 use tedge_api::mqtt_topics::Channel;
 use tedge_api::mqtt_topics::ChannelFilter::Command;
@@ -108,12 +109,20 @@ impl CumulocityConverter {
             return Ok((vec![], None));
         }
 
+        let command =
+            match LogUploadCmd::try_from(topic_id.clone(), cmd_id.into(), message.payload_bytes())?
+            {
+                Some(command) => command,
+                None => {
+                    // The command has been fully processed
+                    return Ok((vec![], None));
+                }
+            };
+
         let target = self.entity_store.try_get(topic_id)?;
         let smartrest_topic = self.smartrest_publish_topic_for_entity(topic_id)?;
-        let payload = message.payload_str()?;
-        let response = &LogUploadCmdPayload::from_json(payload)?;
 
-        let messages = match &response.status {
+        let messages = match command.status() {
             CommandStatus::Executing => {
                 let smartrest_operation_status =
                     set_operation_executing(CumulocitySupportedOperations::C8yLogFileRequest);
@@ -124,7 +133,7 @@ impl CumulocityConverter {
             }
             CommandStatus::Successful => {
                 // Send a request to the Downloader to download the file asynchronously from FTS
-                let log_filename = format!("{}-{}", response.log_type, cmd_id);
+                let log_filename = format!("{}-{}", command.payload.log_type, cmd_id);
 
                 let tedge_file_url = format!(
                     "http://{}/tedge/file-transfer/{external_id}/log_upload/{log_filename}",
@@ -161,7 +170,7 @@ impl CumulocityConverter {
             }
             CommandStatus::Failed { reason } => {
                 let smartrest_operation_status =
-                    fail_operation(CumulocitySupportedOperations::C8yLogFileRequest, reason);
+                    fail_operation(CumulocitySupportedOperations::C8yLogFileRequest, &reason);
                 let c8y_notification =
                     MqttMessage::new(&smartrest_topic, smartrest_operation_status);
                 let clean_operation = MqttMessage::new(&message.topic, "")
@@ -174,7 +183,7 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, None))
+        Ok((messages, Some(command.into())))
     }
 
     /// Resumes `log_upload` operation after required file was downloaded from

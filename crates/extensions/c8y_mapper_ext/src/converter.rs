@@ -1116,7 +1116,7 @@ impl CumulocityConverter {
                             .await
                     }
                     OperationType::FirmwareUpdate => {
-                        self.handle_firmware_update_state_change(&source, message)
+                        self.handle_firmware_update_state_change(&source, cmd_id, message)
                             .await
                     }
                     _ => Ok((vec![], None)),
