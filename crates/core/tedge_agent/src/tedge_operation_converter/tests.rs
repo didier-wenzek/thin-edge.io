@@ -33,14 +33,19 @@ use tedge_mqtt_ext::test_helpers::assert_received_contains_str;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::Topic;
 use tedge_script_ext::Execute;
+use tempfile::TempDir;
 
 const TEST_TIMEOUT_MS: Duration = Duration::from_millis(5000);
 
 #[tokio::test]
 async fn convert_incoming_software_list_request() -> Result<(), DynError> {
     // Spawn incoming mqtt message converter
-    let (mut software_box, _restart_box, mut mqtt_box) =
-        spawn_mqtt_operation_converter("device/main//").await?;
+    let TestHandler {
+        tmp_dir,
+        mut software_box,
+        mut mqtt_box,
+        ..
+    } = spawn_mqtt_operation_converter("device/main//").await?;
 
     // Simulate SoftwareList MQTT message received.
     let mqtt_message = MqttMessage::new(
@@ -55,7 +60,13 @@ async fn convert_incoming_software_list_request() -> Result<(), DynError> {
             &EntityTopicId::default_main_device(),
             "some-cmd-id".to_string(),
         )
-        .with_status(CommandStatus::Scheduled)])
+        .with_status(CommandStatus::Scheduled)
+        .with_log_path(
+            tmp_dir
+                .path()
+                .join("workflow-software_list-some-cmd-id.log")
+                .as_ref(),
+        )])
         .await;
     Ok(())
 }
@@ -63,8 +74,12 @@ async fn convert_incoming_software_list_request() -> Result<(), DynError> {
 #[tokio::test]
 async fn convert_incoming_software_update_request() -> Result<(), DynError> {
     // Spawn incoming mqtt message converter
-    let (mut software_box, _restart_box, mut mqtt_box) =
-        spawn_mqtt_operation_converter("device/child001//").await?;
+    let TestHandler {
+        tmp_dir,
+        mut software_box,
+        mut mqtt_box,
+        ..
+    } = spawn_mqtt_operation_converter("device/child001//").await?;
 
     // Simulate SoftwareUpdate MQTT message received.
     let mqtt_message = MqttMessage::new(
@@ -95,7 +110,7 @@ async fn convert_incoming_software_update_request() -> Result<(), DynError> {
                 status: CommandStatus::Scheduled,
                 update_list: vec![debian_list],
                 failures: vec![],
-                log_path: None,
+                log_path: Some(tmp_dir.path().join("workflow-software_update-1234.log")),
             },
         }])
         .await;
@@ -108,8 +123,12 @@ async fn convert_incoming_restart_request() -> Result<(), DynError> {
     let target_device = "device/child-foo//";
 
     // Spawn incoming mqtt message converter
-    let (_software_box, mut restart_box, mut mqtt_box) =
-        spawn_mqtt_operation_converter(target_device).await?;
+    let TestHandler {
+        tmp_dir,
+        mut restart_box,
+        mut mqtt_box,
+        ..
+    } = spawn_mqtt_operation_converter(target_device).await?;
 
     // Simulate Restart MQTT message received.
     let mqtt_message = MqttMessage::new(
@@ -123,7 +142,11 @@ async fn convert_incoming_restart_request() -> Result<(), DynError> {
         .assert_received([RestartCommand {
             target: target_device.parse()?,
             cmd_id: "random".to_string(),
-            payload: RestartCommandPayload::new(CommandStatus::Scheduled),
+            payload: RestartCommandPayload {
+                status: CommandStatus::Scheduled,
+                context: None,
+                log_path: Some(tmp_dir.path().join("workflow-restart-random.log")),
+            },
         }])
         .await;
 
@@ -133,8 +156,11 @@ async fn convert_incoming_restart_request() -> Result<(), DynError> {
 #[tokio::test]
 async fn convert_outgoing_software_list_response() -> Result<(), DynError> {
     // Spawn outgoing mqtt message converter
-    let (mut software_box, _restart_box, mut mqtt_box) =
-        spawn_mqtt_operation_converter("device/main//").await?;
+    let TestHandler {
+        mut software_box,
+        mut mqtt_box,
+        ..
+    } = spawn_mqtt_operation_converter("device/main//").await?;
 
     // Declare supported software types from software actor
     software_box
@@ -169,8 +195,11 @@ async fn convert_outgoing_software_list_response() -> Result<(), DynError> {
 #[tokio::test]
 async fn publish_capabilities_on_start() -> Result<(), DynError> {
     // Spawn outgoing mqtt message converter
-    let (mut software_box, _restart_box, mut mqtt_box) =
-        spawn_mqtt_operation_converter("device/child//").await?;
+    let TestHandler {
+        mut software_box,
+        mut mqtt_box,
+        ..
+    } = spawn_mqtt_operation_converter("device/child//").await?;
 
     mqtt_box
         .assert_received([MqttMessage::new(
@@ -211,8 +240,11 @@ async fn publish_capabilities_on_start() -> Result<(), DynError> {
 #[tokio::test]
 async fn convert_outgoing_software_update_response() -> Result<(), DynError> {
     // Spawn outgoing mqtt message converter
-    let (mut software_box, _restart_box, mut mqtt_box) =
-        spawn_mqtt_operation_converter("device/main//").await?;
+    let TestHandler {
+        mut software_box,
+        mut mqtt_box,
+        ..
+    } = spawn_mqtt_operation_converter("device/main//").await?;
 
     // Declare supported software types from software actor
     software_box
@@ -245,8 +277,12 @@ async fn convert_outgoing_software_update_response() -> Result<(), DynError> {
 #[tokio::test]
 async fn convert_outgoing_restart_response() -> Result<(), DynError> {
     // Spawn outgoing mqtt message converter
-    let (mut software_box, mut restart_box, mut mqtt_box) =
-        spawn_mqtt_operation_converter("device/main//").await?;
+    let TestHandler {
+        mut software_box,
+        mut restart_box,
+        mut mqtt_box,
+        ..
+    } = spawn_mqtt_operation_converter("device/main//").await?;
 
     // Declare supported software types from software actor
     software_box
@@ -278,16 +314,14 @@ async fn convert_outgoing_restart_response() -> Result<(), DynError> {
     Ok(())
 }
 
-async fn spawn_mqtt_operation_converter(
-    device_topic_id: &str,
-) -> Result<
-    (
-        TimedMessageBox<SimpleMessageBox<SoftwareCommand, SoftwareCommand>>,
-        TimedMessageBox<SimpleMessageBox<RestartCommand, RestartCommand>>,
-        TimedMessageBox<SimpleMessageBox<MqttMessage, MqttMessage>>,
-    ),
-    DynError,
-> {
+struct TestHandler {
+    tmp_dir: TempDir,
+    mqtt_box: TimedMessageBox<SimpleMessageBox<MqttMessage, MqttMessage>>,
+    software_box: TimedMessageBox<SimpleMessageBox<SoftwareCommand, SoftwareCommand>>,
+    restart_box: TimedMessageBox<SimpleMessageBox<RestartCommand, RestartCommand>>,
+}
+
+async fn spawn_mqtt_operation_converter(device_topic_id: &str) -> Result<TestHandler, DynError> {
     let mut software_builder: SimpleMessageBoxBuilder<SoftwareCommand, SoftwareCommand> =
         SimpleMessageBoxBuilder::new("Software", 5);
     let mut restart_builder: SimpleMessageBoxBuilder<RestartCommand, RestartCommand> =
@@ -321,12 +355,17 @@ async fn spawn_mqtt_operation_converter(
 
     let software_box = software_builder.build().with_timeout(TEST_TIMEOUT_MS);
     let restart_box = restart_builder.build().with_timeout(TEST_TIMEOUT_MS);
-    let mqtt_message_box = mqtt_builder.build().with_timeout(TEST_TIMEOUT_MS);
+    let mqtt_box = mqtt_builder.build().with_timeout(TEST_TIMEOUT_MS);
 
     let converter_actor = converter_actor_builder.build();
     tokio::spawn(async move { converter_actor.run().await });
 
-    Ok((software_box, restart_box, mqtt_message_box))
+    Ok(TestHandler {
+        tmp_dir,
+        mqtt_box,
+        software_box,
+        restart_box,
+    })
 }
 
 async fn skip_capability_messages(mqtt: &mut impl MessageReceiver<MqttMessage>, device: &str) {

@@ -102,6 +102,12 @@ where
     pub fn failed(&mut self, reason: impl Into<String>) {
         self.payload.failed(reason);
     }
+
+    /// Set the operation log_path for the command
+    pub fn with_log_path(mut self, path: &Path) -> Self {
+        self.payload.set_log_path(path);
+        self
+    }
 }
 
 impl<Payload> Command<Payload>
@@ -641,7 +647,7 @@ pub struct RestartCommandPayload {
     pub status: CommandStatus,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    context: Option<RestartContext>,
+    pub context: Option<RestartContext>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub log_path: Option<PathBuf>,
@@ -683,7 +689,7 @@ impl CommandPayload for RestartCommandPayload {
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct RestartContext {
+pub struct RestartContext {
     command: GenericCommandState,
     on_exec: StateName,
     on_success: StateName,
