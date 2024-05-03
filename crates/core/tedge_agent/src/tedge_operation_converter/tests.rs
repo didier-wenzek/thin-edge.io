@@ -3,6 +3,7 @@ use crate::tedge_operation_converter::builder::TedgeOperationConverterBuilder;
 use crate::tedge_operation_converter::config::OperationConfig;
 use camino::Utf8Path;
 use serde_json::json;
+use serde_json::Map;
 use std::process::Output;
 use std::time::Duration;
 use tedge_actors::test_helpers::MessageReceiverExt;
@@ -27,6 +28,7 @@ use tedge_api::commands::SoftwareUpdateCommandPayload;
 use tedge_api::mqtt_topics::EntityTopicId;
 use tedge_api::mqtt_topics::MqttSchema;
 use tedge_api::workflow::WorkflowSupervisor;
+use tedge_api::workflow::OP_LOG_PATH_KEY;
 use tedge_api::RestartCommand;
 use tedge_api::SoftwareUpdateCommand;
 use tedge_mqtt_ext::test_helpers::assert_received_contains_str;
@@ -61,11 +63,13 @@ async fn convert_incoming_software_list_request() -> Result<(), DynError> {
             "some-cmd-id".to_string(),
         )
         .with_status(CommandStatus::Scheduled)
-        .with_log_path(
-            tmp_dir
+        .with_extra_field(
+            OP_LOG_PATH_KEY.into(),
+            json!(tmp_dir
                 .path()
                 .join("workflow-software_list-some-cmd-id.log")
-                .as_ref(),
+                .to_str()
+                .unwrap()),
         )])
         .await;
     Ok(())
@@ -110,7 +114,10 @@ async fn convert_incoming_software_update_request() -> Result<(), DynError> {
                 status: CommandStatus::Scheduled,
                 update_list: vec![debian_list],
                 failures: vec![],
-                log_path: Some(tmp_dir.path().join("workflow-software_update-1234.log")),
+                extra_fields: Map::from_iter([(
+                    OP_LOG_PATH_KEY.into(),
+                    json!(tmp_dir.path().join("workflow-software_update-1234.log")),
+                )]),
             },
         }])
         .await;
@@ -145,7 +152,10 @@ async fn convert_incoming_restart_request() -> Result<(), DynError> {
             payload: RestartCommandPayload {
                 status: CommandStatus::Scheduled,
                 context: None,
-                log_path: Some(tmp_dir.path().join("workflow-restart-random.log")),
+                extra_fields: Map::from_iter([(
+                    OP_LOG_PATH_KEY.into(),
+                    json!(tmp_dir.path().join("workflow-restart-random.log")),
+                )]),
             },
         }])
         .await;

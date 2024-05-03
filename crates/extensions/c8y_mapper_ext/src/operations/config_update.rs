@@ -6,11 +6,11 @@ use c8y_api::smartrest::smartrest_serializer::fail_operation;
 use c8y_api::smartrest::smartrest_serializer::set_operation_executing;
 use c8y_api::smartrest::smartrest_serializer::succeed_operation_no_payload;
 use c8y_api::smartrest::smartrest_serializer::CumulocitySupportedOperations;
+use serde_json::Map;
 use std::sync::Arc;
 use tedge_api::commands::CommandStatus;
 use tedge_api::commands::ConfigUpdateCmd;
 use tedge_api::commands::ConfigUpdateCmdPayload;
-use tedge_api::commands::GenericCommand;
 use tedge_api::entity_store::EntityExternalId;
 use tedge_api::entity_store::EntityMetadata;
 use tedge_api::mqtt_topics::Channel;
@@ -19,6 +19,7 @@ use tedge_api::mqtt_topics::EntityFilter;
 use tedge_api::mqtt_topics::EntityTopicId;
 use tedge_api::mqtt_topics::MqttSchema;
 use tedge_api::mqtt_topics::OperationType;
+use tedge_api::workflow::GenericCommandState;
 use tedge_api::Jsonify;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::QoS;
@@ -50,7 +51,7 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandState>), ConversionError> {
         if !self.config.capabilities.config_update {
             warn!("Received a config_update command, however, config_update feature is disabled");
             return Ok((vec![], None));
@@ -105,7 +106,10 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, Some(command.into())))
+        Ok((
+            messages,
+            Some(command.into_generic_command(&self.mqtt_schema)),
+        ))
     }
 
     /// Upon receiving a SmartREST c8y_DownloadConfigFile request, convert it to a message on the
@@ -164,7 +168,7 @@ impl CumulocityConverter {
             remote_url,
             config_type: config_download_request.config_type.clone(),
             path: None,
-            log_path: None,
+            extra_fields: Map::default(),
         };
 
         // Command messages must be retained

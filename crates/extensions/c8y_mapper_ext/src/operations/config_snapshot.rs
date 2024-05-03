@@ -12,18 +12,19 @@ use c8y_api::smartrest::smartrest_serializer::set_operation_executing;
 use c8y_api::smartrest::smartrest_serializer::CumulocitySupportedOperations;
 use c8y_http_proxy::messages::CreateEvent;
 use camino::Utf8PathBuf;
+use serde_json::Map;
 use std::collections::HashMap;
 use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
 use tedge_api::commands::ConfigSnapshotCmd;
 use tedge_api::commands::ConfigSnapshotCmdPayload;
-use tedge_api::commands::GenericCommand;
 use tedge_api::mqtt_topics::Channel;
 use tedge_api::mqtt_topics::ChannelFilter;
 use tedge_api::mqtt_topics::EntityFilter;
 use tedge_api::mqtt_topics::EntityTopicId;
 use tedge_api::mqtt_topics::MqttSchema;
 use tedge_api::mqtt_topics::OperationType;
+use tedge_api::workflow::GenericCommandState;
 use tedge_api::Jsonify;
 use tedge_downloader_ext::DownloadRequest;
 use tedge_downloader_ext::DownloadResult;
@@ -83,7 +84,7 @@ impl CumulocityConverter {
             tedge_url: Some(tedge_url),
             config_type: config_upload_request.config_type,
             path: None,
-            log_path: None,
+            extra_fields: Map::default(),
         };
 
         // Command messages must be retained
@@ -101,7 +102,7 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandState>), ConversionError> {
         if !self.config.capabilities.config_snapshot {
             warn!(
                 "Received a config_snapshot command, however, config_snapshot feature is disabled"
@@ -189,7 +190,10 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, Some(command.into())))
+        Ok((
+            messages,
+            Some(command.into_generic_command(&self.mqtt_schema)),
+        ))
     }
 
     /// Resumes `config_snapshot` operation after required file was downloaded

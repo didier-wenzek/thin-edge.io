@@ -12,10 +12,10 @@ use c8y_api::smartrest::smartrest_serializer::set_operation_executing;
 use c8y_api::smartrest::smartrest_serializer::CumulocitySupportedOperations;
 use c8y_http_proxy::messages::CreateEvent;
 use camino::Utf8PathBuf;
+use serde_json::Map;
 use std::collections::HashMap;
 use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
-use tedge_api::commands::GenericCommand;
 use tedge_api::commands::LogMetadata;
 use tedge_api::commands::LogUploadCmd;
 use tedge_api::commands::LogUploadCmdPayload;
@@ -26,6 +26,7 @@ use tedge_api::mqtt_topics::EntityFilter::AnyEntity;
 use tedge_api::mqtt_topics::EntityTopicId;
 use tedge_api::mqtt_topics::MqttSchema;
 use tedge_api::mqtt_topics::OperationType;
+use tedge_api::workflow::GenericCommandState;
 use tedge_api::Jsonify;
 use tedge_downloader_ext::DownloadRequest;
 use tedge_downloader_ext::DownloadResult;
@@ -83,7 +84,7 @@ impl CumulocityConverter {
             date_to: log_request.date_to,
             search_text: Some(log_request.search_text).filter(|s| !s.is_empty()),
             lines: log_request.maximum_lines,
-            log_path: None,
+            extra_fields: Map::default(),
         };
 
         // Command messages must be retained
@@ -101,7 +102,7 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandState>), ConversionError> {
         debug!("Handling log_upload command");
 
         if !self.config.capabilities.log_upload {
@@ -183,7 +184,10 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, Some(command.into())))
+        Ok((
+            messages,
+            Some(command.into_generic_command(&self.mqtt_schema)),
+        ))
     }
 
     /// Resumes `log_upload` operation after required file was downloaded from

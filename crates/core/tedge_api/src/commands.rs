@@ -14,8 +14,8 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
-use std::path::Path;
-use std::path::PathBuf;
+use serde_json::Map;
+use serde_json::Value;
 use time::OffsetDateTime;
 
 /// A command instance with its target and its current state of execution
@@ -79,6 +79,11 @@ where
         self
     }
 
+    pub fn with_extra_field(mut self, key: String, value: Value) -> Self {
+        self.payload.set_extra_field(key, value);
+        self
+    }
+
     /// Return the MQTT message to register support for this types of command
     pub fn capability_message(schema: &MqttSchema, target: &EntityTopicId) -> MqttMessage {
         let meta_topic = schema.capability_topic_for(target, Payload::operation_type());
@@ -101,12 +106,6 @@ where
     /// Mark the command as failed
     pub fn failed(&mut self, reason: impl Into<String>) {
         self.payload.failed(reason);
-    }
-
-    /// Set the operation log_path for the command
-    pub fn with_log_path(mut self, path: &Path) -> Self {
-        self.payload.set_log_path(path);
-        self
     }
 }
 
@@ -142,13 +141,23 @@ where
         if bytes.is_empty() {
             Ok(None)
         } else {
-            let payload = Payload::from_slice(bytes)?;
+            let payload = Self::payload_from(bytes)?;
             Ok(Some(Command {
                 target,
                 cmd_id,
                 payload,
             }))
         }
+    }
+
+    pub fn payload_from(bytes: &'a [u8]) -> Result<Payload, serde_json::Error> {
+        let mut payload = Payload::from_slice(bytes)?;
+        // Workaround to avoid the `status` and `reason` fields
+        // getting duplicated in the `extras_fields` field of the payload
+        // despite getting properly captured into the `CommandStatus` field as well
+        payload.remove_extra_field("status");
+        payload.remove_extra_field("reason");
+        Ok(payload)
     }
 
     /// Return the generic command representation for this command
@@ -212,12 +221,11 @@ pub trait CommandPayload {
         });
     }
 
-    /// Return the operation log path of the command
-    fn log_path(&self) -> Option<&Path>;
+    fn get_extra_field(&self, key: &str) -> Option<&Value>;
 
-    /// Set the operation log path for the command.
-    /// To be set by the component processing the command, e.g: tedge-agent
-    fn set_log_path(&mut self, path: &Path);
+    fn set_extra_field(&mut self, key: String, value: Value);
+
+    fn remove_extra_field(&mut self, key: &str);
 }
 
 /// All the messages are serialized using json.
@@ -251,26 +259,6 @@ pub trait Jsonify<'a> {
     }
 }
 
-pub struct GenericCommand {
-    pub target: EntityTopicId,
-    pub cmd_id: String,
-    pub op_type: OperationType,
-    pub status: CommandStatus,
-    pub log_path: Option<PathBuf>,
-}
-
-impl<T: CommandPayload> From<Command<T>> for GenericCommand {
-    fn from(value: Command<T>) -> Self {
-        GenericCommand {
-            target: value.target,
-            cmd_id: value.cmd_id,
-            op_type: T::operation_type(),
-            status: value.payload.status(),
-            log_path: value.payload.log_path().map(|p| p.to_path_buf()),
-        }
-    }
-}
-
 /// Command to request the list of software packages that are installed on a device
 pub type SoftwareListCommand = Command<SoftwareListCommandPayload>;
 
@@ -284,8 +272,8 @@ pub struct SoftwareListCommandPayload {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub current_software_list: Vec<SoftwareList>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub log_path: Option<PathBuf>,
+    #[serde(flatten)]
+    pub extra_fields: Map<String, Value>,
 }
 
 impl<'a> Jsonify<'a> for SoftwareListCommandPayload {}
@@ -303,12 +291,16 @@ impl CommandPayload for SoftwareListCommandPayload {
         self.status = status
     }
 
-    fn log_path(&self) -> Option<&Path> {
-        self.log_path.as_deref()
+    fn get_extra_field(&self, key: &str) -> Option<&Value> {
+        self.extra_fields.get(key)
     }
 
-    fn set_log_path(&mut self, path: &Path) {
-        self.log_path = Some(path.into())
+    fn set_extra_field(&mut self, key: String, value: Value) {
+        self.extra_fields.insert(key, value);
+    }
+
+    fn remove_extra_field(&mut self, key: &str) {
+        self.extra_fields.remove(key);
     }
 }
 
@@ -370,8 +362,8 @@ pub struct SoftwareUpdateCommandPayload {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub failures: Vec<SoftwareRequestResponseSoftwareList>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub log_path: Option<PathBuf>,
+    #[serde(flatten)]
+    pub extra_fields: Map<String, Value>,
 }
 
 impl<'a> Jsonify<'a> for SoftwareUpdateCommandPayload {}
@@ -389,12 +381,16 @@ impl CommandPayload for SoftwareUpdateCommandPayload {
         self.status = status
     }
 
-    fn log_path(&self) -> Option<&Path> {
-        self.log_path.as_deref()
+    fn get_extra_field(&self, key: &str) -> Option<&Value> {
+        self.extra_fields.get(key)
     }
 
-    fn set_log_path(&mut self, path: &Path) {
-        self.log_path = Some(path.into())
+    fn set_extra_field(&mut self, key: String, value: Value) {
+        self.extra_fields.insert(key, value);
+    }
+
+    fn remove_extra_field(&mut self, key: &str) {
+        self.extra_fields.remove(key);
     }
 }
 
@@ -488,10 +484,6 @@ impl SoftwareUpdateCommand {
                     .filter_map(|update| update.into())
                     .collect::<Vec<SoftwareModuleItem>>(),
             })
-    }
-
-    pub fn set_log_path(&mut self, path: &Path) {
-        self.payload.log_path = Some(path.into())
     }
 }
 
@@ -622,7 +614,7 @@ impl RestartCommand {
                 on_success,
                 on_error,
             }),
-            log_path: None,
+            extra_fields: Map::default(),
         };
         Command {
             target,
@@ -649,8 +641,8 @@ pub struct RestartCommandPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context: Option<RestartContext>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub log_path: Option<PathBuf>,
+    #[serde(flatten)]
+    pub extra_fields: Map<String, Value>,
 }
 
 impl RestartCommandPayload {
@@ -658,7 +650,7 @@ impl RestartCommandPayload {
         RestartCommandPayload {
             status,
             context: None,
-            log_path: None,
+            extra_fields: Map::default(),
         }
     }
 }
@@ -678,12 +670,16 @@ impl CommandPayload for RestartCommandPayload {
         self.status = status
     }
 
-    fn log_path(&self) -> Option<&Path> {
-        self.log_path.as_deref()
+    fn get_extra_field(&self, key: &str) -> Option<&Value> {
+        self.extra_fields.get(key)
     }
 
-    fn set_log_path(&mut self, path: &Path) {
-        self.log_path = Some(path.into())
+    fn set_extra_field(&mut self, key: String, value: Value) {
+        self.extra_fields.insert(key, value);
+    }
+
+    fn remove_extra_field(&mut self, key: &str) {
+        self.extra_fields.remove(key);
     }
 }
 
@@ -805,8 +801,8 @@ pub struct LogUploadCmdPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search_text: Option<String>,
     pub lines: usize,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub log_path: Option<PathBuf>,
+    #[serde(flatten)]
+    pub extra_fields: Map<String, Value>,
 }
 
 impl<'a> Jsonify<'a> for LogUploadCmdPayload {}
@@ -824,12 +820,16 @@ impl CommandPayload for LogUploadCmdPayload {
         self.status = status
     }
 
-    fn log_path(&self) -> Option<&Path> {
-        self.log_path.as_deref()
+    fn get_extra_field(&self, key: &str) -> Option<&Value> {
+        self.extra_fields.get(key)
     }
 
-    fn set_log_path(&mut self, path: &Path) {
-        self.log_path = Some(path.into())
+    fn set_extra_field(&mut self, key: String, value: Value) {
+        self.extra_fields.insert(key, value);
+    }
+
+    fn remove_extra_field(&mut self, key: &str) {
+        self.extra_fields.remove(key);
     }
 }
 
@@ -855,8 +855,8 @@ pub struct ConfigSnapshotCmdPayload {
     pub config_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub log_path: Option<PathBuf>,
+    #[serde(flatten)]
+    pub extra_fields: Map<String, Value>,
 }
 
 impl<'a> Jsonify<'a> for ConfigSnapshotCmdPayload {}
@@ -874,12 +874,16 @@ impl CommandPayload for ConfigSnapshotCmdPayload {
         self.status = status
     }
 
-    fn log_path(&self) -> Option<&Path> {
-        self.log_path.as_deref()
+    fn get_extra_field(&self, key: &str) -> Option<&Value> {
+        self.extra_fields.get(key)
     }
 
-    fn set_log_path(&mut self, path: &Path) {
-        self.log_path = Some(path.into())
+    fn set_extra_field(&mut self, key: String, value: Value) {
+        self.extra_fields.insert(key, value);
+    }
+
+    fn remove_extra_field(&mut self, key: &str) {
+        self.extra_fields.remove(key);
     }
 }
 
@@ -912,8 +916,8 @@ pub struct ConfigUpdateCmdPayload {
     pub config_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub log_path: Option<PathBuf>,
+    #[serde(flatten)]
+    pub extra_fields: Map<String, Value>,
 }
 
 impl<'a> Jsonify<'a> for ConfigUpdateCmdPayload {}
@@ -931,12 +935,16 @@ impl CommandPayload for ConfigUpdateCmdPayload {
         self.status = status
     }
 
-    fn log_path(&self) -> Option<&Path> {
-        self.log_path.as_deref()
+    fn get_extra_field(&self, key: &str) -> Option<&Value> {
+        self.extra_fields.get(key)
     }
 
-    fn set_log_path(&mut self, path: &Path) {
-        self.log_path = Some(path.into())
+    fn set_extra_field(&mut self, key: String, value: Value) {
+        self.extra_fields.insert(key, value);
+    }
+
+    fn remove_extra_field(&mut self, key: &str) {
+        self.extra_fields.remove(key);
     }
 }
 
@@ -971,8 +979,8 @@ pub struct FirmwareUpdateCmdPayload {
     pub remote_url: String,
     pub name: String,
     pub version: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub log_path: Option<PathBuf>,
+    #[serde(flatten)]
+    pub extra_fields: Map<String, Value>,
 }
 
 impl<'a> Jsonify<'a> for FirmwareUpdateCmdPayload {}
@@ -990,12 +998,16 @@ impl CommandPayload for FirmwareUpdateCmdPayload {
         self.status = status
     }
 
-    fn log_path(&self) -> Option<&Path> {
-        self.log_path.as_deref()
+    fn get_extra_field(&self, key: &str) -> Option<&Value> {
+        self.extra_fields.get(key)
     }
 
-    fn set_log_path(&mut self, path: &Path) {
-        self.log_path = Some(path.into())
+    fn set_extra_field(&mut self, key: String, value: Value) {
+        self.extra_fields.insert(key, value);
+    }
+
+    fn remove_extra_field(&mut self, key: &str) {
+        self.extra_fields.remove(key);
     }
 }
 
@@ -1004,11 +1016,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn serde_restart_command() {
+        let payload = r#"{"status":"failed","reason":"Some reason"}"#;
+        let command = RestartCommand::payload_from(payload.as_bytes()).unwrap();
+
+        assert_eq!(
+            command,
+            RestartCommandPayload {
+                status: CommandStatus::Failed {
+                    reason: "Some reason".into()
+                },
+                context: None,
+                extra_fields: Map::default()
+            }
+        );
+
+        let de_payload = command.to_json();
+        assert_eq!(payload, de_payload);
+    }
+
+    #[test]
     fn serde_software_request_list() {
         let request = SoftwareListCommandPayload {
             status: CommandStatus::Init,
             current_software_list: vec![],
-            log_path: None,
+            extra_fields: Map::default(),
         };
         let expected_json = r#"{"status":"init"}"#;
 
@@ -1016,9 +1048,24 @@ mod tests {
 
         assert_eq!(actual_json, expected_json);
 
-        let de_request = SoftwareListCommandPayload::from_json(actual_json.as_str())
+        let de_request = SoftwareListCommand::payload_from(actual_json.as_bytes())
             .expect("failed to deserialize");
         assert_eq!(request, de_request);
+    }
+
+    #[test]
+    fn serde_software_request_list_with_extra_fields() {
+        let command = SoftwareListCommandPayload {
+            status: CommandStatus::Init,
+            current_software_list: vec![],
+            extra_fields: Map::from_iter(vec![(
+                "logPath".into(),
+                Value::String("/some/path".into()),
+            )]),
+        };
+
+        let foo = command.to_json();
+        dbg!(foo);
     }
 
     #[test]
@@ -1061,7 +1108,7 @@ mod tests {
             status: CommandStatus::Init,
             update_list: vec![debian_list, docker_list],
             failures: vec![],
-            log_path: None,
+            extra_fields: Map::default(),
         };
 
         let expected_json = r#"{"status":"init","updateList":[{"type":"debian","modules":[{"name":"debian1","version":"0.0.1","action":"install"},{"name":"debian2","version":"0.0.2","action":"install"}]},{"type":"docker","modules":[{"name":"docker1","version":"0.0.1","url":"test.com","action":"remove"}]}]}"#;
@@ -1069,7 +1116,7 @@ mod tests {
         let actual_json = request.to_json();
         assert_eq!(actual_json, expected_json);
 
-        let parsed_request = SoftwareUpdateCommandPayload::from_json(&actual_json)
+        let parsed_request = SoftwareUpdateCommand::payload_from(actual_json.as_bytes())
             .expect("Fail to parse the json request");
         assert_eq!(parsed_request, request);
     }
@@ -1079,14 +1126,15 @@ mod tests {
         let request = SoftwareListCommandPayload {
             status: CommandStatus::Unknown,
             current_software_list: vec![],
-            log_path: None,
+            extra_fields: Map::default(),
         };
 
         // The `CommandStatus::Unknown` variant is used when the status is unknown.
         // This is notably the case when the status is produced by a custom operation workflow.
         assert_eq!(
             request,
-            SoftwareListCommandPayload::from_json(r#"{"status":"some-custom-status"}"#).unwrap()
+            SoftwareListCommand::payload_from(r#"{"status":"some-custom-status"}"#.as_bytes())
+                .unwrap()
         );
 
         // However, if serialized again the custom status is lost

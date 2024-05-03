@@ -65,7 +65,6 @@ use std::sync::Arc;
 use tedge_actors::LoggingSender;
 use tedge_actors::Sender;
 use tedge_api::commands::CommandStatus;
-use tedge_api::commands::GenericCommand;
 use tedge_api::commands::RestartCommand;
 use tedge_api::commands::SoftwareCommandMetadata;
 use tedge_api::commands::SoftwareListCommand;
@@ -84,6 +83,7 @@ use tedge_api::mqtt_topics::IdGenerator;
 use tedge_api::mqtt_topics::MqttSchema;
 use tedge_api::mqtt_topics::OperationType;
 use tedge_api::pending_entity_store::PendingEntityData;
+use tedge_api::workflow::GenericCommandState;
 use tedge_api::DownloadInfo;
 use tedge_api::EntityStore;
 use tedge_api::Jsonify;
@@ -1125,7 +1125,7 @@ impl CumulocityConverter {
                 match res {
                     Ok((messages, command)) => {
                         if let Some(command) = command {
-                            self.upload_operation_log(command).await;
+                            self.upload_operation_log(cmd_id, operation, command).await;
                         }
                         Ok(messages)
                     }
@@ -1429,7 +1429,7 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandState>), ConversionError> {
         let command = match RestartCommand::try_from(
             target.clone(),
             cmd_id.to_owned(),
@@ -1479,7 +1479,10 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, Some(command.into())))
+        Ok((
+            messages,
+            Some(command.into_generic_command(&self.mqtt_schema)),
+        ))
     }
 
     fn register_custom_operation(
@@ -1535,7 +1538,7 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandState>), ConversionError> {
         let command = match SoftwareUpdateCommand::try_from(
             target.clone(),
             cmd_id.to_string(),
@@ -1586,30 +1589,36 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, Some(command.into())))
+        Ok((
+            messages,
+            Some(command.into_generic_command(&self.mqtt_schema)),
+        ))
     }
 
-    async fn upload_operation_log(&mut self, command: GenericCommand) {
-        if command.target == *self.entity_store.main_device()
-            && command.status.is_terminal_status()
-            && command.log_path.is_some()
+    async fn upload_operation_log(
+        &mut self,
+        cmd_id: &str,
+        op_type: &OperationType,
+        command: GenericCommandState,
+    ) {
+        if command.is_finished()
+            && command.get_log_path().is_some()
             && (self.config.auto_log_upload == AutoLogUpload::Always
-                || (self.config.auto_log_upload == AutoLogUpload::OnFailure
-                    && command.status.is_failed()))
+                || (self.config.auto_log_upload == AutoLogUpload::OnFailure && command.is_failed()))
         {
-            let log_path = command.log_path.unwrap();
+            let log_path = command.get_log_path().unwrap();
             match tokio::fs::read_to_string(&log_path).await {
                 Ok(log_content) => {
                     if let Err(err) = self
                         .http_proxy
                         .upload_log_binary(
-                            &command.op_type.to_string(),
+                            &op_type.to_string(),
                             &log_content,
                             self.device_name.clone(),
                         )
                         .await
                     {
-                        error!("Log log upload failed for {} with {}", command.cmd_id, err);
+                        error!("Log log upload failed for {} with {}", cmd_id, err);
                     }
                 }
                 Err(err) => error!(
@@ -1625,7 +1634,7 @@ impl CumulocityConverter {
         target: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandState>), ConversionError> {
         let command = match SoftwareListCommand::try_from(
             target.clone(),
             cmd_id.to_owned(),
@@ -1687,7 +1696,10 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, Some(command.into())))
+        Ok((
+            messages,
+            Some(command.into_generic_command(&self.mqtt_schema)),
+        ))
     }
 }
 

@@ -2,6 +2,7 @@ use crate::software_manager::actor::SoftwareCommand;
 use crate::software_manager::builder::SoftwareManagerBuilder;
 use crate::software_manager::config::SoftwareManagerConfig;
 use serde_json::json;
+use serde_json::Map;
 use std::time::Duration;
 use tedge_actors::test_helpers::MessageReceiverExt;
 use tedge_actors::test_helpers::TimedMessageBox;
@@ -97,7 +98,7 @@ async fn test_new_software_update_operation() -> Result<(), DynError> {
             status: CommandStatus::Scheduled,
             update_list: vec![debian_list],
             failures: vec![],
-            log_path: None,
+            extra_fields: Map::default(),
         },
     };
     converter_box.send(command.into()).await?;

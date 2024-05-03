@@ -6,10 +6,10 @@ use c8y_api::smartrest::smartrest_serializer::fail_operation;
 use c8y_api::smartrest::smartrest_serializer::set_operation_executing;
 use c8y_api::smartrest::smartrest_serializer::succeed_operation_no_payload;
 use c8y_api::smartrest::smartrest_serializer::CumulocitySupportedOperations;
+use serde_json::Map;
 use tedge_api::commands::FirmwareInfo;
 use tedge_api::commands::FirmwareUpdateCmd;
 use tedge_api::commands::FirmwareUpdateCmdPayload;
-use tedge_api::commands::GenericCommand;
 use tedge_api::entity_store::EntityExternalId;
 use tedge_api::mqtt_topics::Channel;
 use tedge_api::mqtt_topics::ChannelFilter::Command;
@@ -18,6 +18,7 @@ use tedge_api::mqtt_topics::EntityFilter::AnyEntity;
 use tedge_api::mqtt_topics::EntityTopicId;
 use tedge_api::mqtt_topics::MqttSchema;
 use tedge_api::mqtt_topics::OperationType;
+use tedge_api::workflow::GenericCommandState;
 use tedge_api::CommandStatus;
 use tedge_api::Jsonify;
 use tedge_mqtt_ext::MqttMessage;
@@ -66,7 +67,7 @@ impl CumulocityConverter {
             remote_url: firmware_request.url,
             name: firmware_request.name,
             version: firmware_request.version,
-            log_path: None,
+            extra_fields: Map::default(),
         };
 
         // Command messages must be retained
@@ -84,7 +85,7 @@ impl CumulocityConverter {
         topic_id: &EntityTopicId,
         cmd_id: &str,
         message: &MqttMessage,
-    ) -> Result<(Vec<MqttMessage>, Option<GenericCommand>), ConversionError> {
+    ) -> Result<(Vec<MqttMessage>, Option<GenericCommandState>), ConversionError> {
         if !self.config.capabilities.firmware_update {
             warn!(
                 "Received a firmware_update command, however, firmware_update feature is disabled"
@@ -157,7 +158,10 @@ impl CumulocityConverter {
             }
         };
 
-        Ok((messages, Some(command.into())))
+        Ok((
+            messages,
+            Some(command.into_generic_command(&self.mqtt_schema)),
+        ))
     }
 
     pub fn register_firmware_update_operation(
