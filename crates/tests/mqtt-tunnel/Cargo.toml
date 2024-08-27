@@ -1,0 +1,15 @@
+[package]
+name = "mqtt-tunnel"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "sync", "net", "io-util", "rt-multi-thread"] }
+
+[lints]
+workspace = true

@@ -2230,6 +2230,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mqtt-tunnel"
+version = "1.2.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "mqtt_channel"
 version = "1.3.0"
 dependencies = [
