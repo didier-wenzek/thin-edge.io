@@ -1,5 +1,6 @@
 use crate::topics::matches_ignore_dollar_prefix;
 use crate::topics::TopicConverter;
+use certificate::parse_root_certificate::create_dangerous_tls_config;
 use certificate::parse_root_certificate::create_tls_config;
 use rumqttc::valid_filter;
 use rumqttc::valid_topic;
@@ -14,11 +15,19 @@ pub fn use_key_and_cert(
     root_cert_path: impl AsRef<Path>,
     tedge_config: &TEdgeConfig,
 ) -> anyhow::Result<()> {
-    let tls_config = create_tls_config(
-        root_cert_path,
-        &tedge_config.device.key_path,
-        &tedge_config.device.cert_path,
-    )?;
+    let dangerous = format!("{}", tedge_config.c8y.mqtt.or_config_not_set()?.host()) == "localhost";
+    let tls_config = if dangerous {
+        create_dangerous_tls_config(
+            &tedge_config.device.key_path,
+            &tedge_config.device.cert_path,
+        )?
+    } else {
+        create_tls_config(
+            root_cert_path,
+            &tedge_config.device.key_path,
+            &tedge_config.device.cert_path,
+        )?
+    };
     config.set_transport(Transport::tls_with_config(tls_config.into()));
     Ok(())
 }

@@ -1,7 +1,10 @@
+use rustls::client::ServerCertVerified;
 use rustls::Certificate;
 use rustls::ClientConfig;
+use rustls::Error;
 use rustls::PrivateKey;
 use rustls::RootCertStore;
+use rustls::ServerName;
 use rustls_pemfile::certs;
 use rustls_pemfile::pkcs8_private_keys;
 use rustls_pemfile::rsa_private_keys;
@@ -10,6 +13,8 @@ use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use std::sync::Arc;
+use std::time::SystemTime;
 
 use crate::CertificateError;
 
@@ -26,6 +31,35 @@ pub fn create_tls_config(
         .with_safe_defaults()
         .with_root_certificates(root_cert_store)
         .with_client_auth_cert(cert_chain, pvt_key)?)
+}
+
+pub fn create_dangerous_tls_config(
+    client_private_key: impl AsRef<Path>,
+    client_certificate: impl AsRef<Path>,
+) -> Result<ClientConfig, CertificateError> {
+    let pvt_key = read_pvt_key(client_private_key)?;
+    let cert_chain = read_cert_chain(client_certificate)?;
+
+    Ok(ClientConfig::builder()
+        .with_safe_defaults()
+        .with_custom_certificate_verifier(Arc::new(LiberalVerifier))
+        .with_client_auth_cert(cert_chain, pvt_key)?)
+}
+
+struct LiberalVerifier;
+
+impl rustls::client::ServerCertVerifier for LiberalVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &Certificate,
+        _intermediates: &[Certificate],
+        _server_name: &ServerName,
+        _scts: &mut dyn Iterator<Item = &[u8]>,
+        _ocsp_response: &[u8],
+        _now: SystemTime,
+    ) -> Result<ServerCertVerified, Error> {
+        Ok(ServerCertVerified::assertion())
+    }
 }
 
 pub fn client_config_for_ca_certificates<P>(
