@@ -1,0 +1,19 @@
+[package]
+name = "mqtt-cat"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bytes = { workspace = true }
+mqttrs = "0.4"
+tokio = { workspace = true, features = ["net", "io-util"] }
+
+
+[lints]
+workspace = true
