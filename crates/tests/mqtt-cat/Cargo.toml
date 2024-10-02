@@ -11,6 +11,7 @@ repository.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 bytes = { workspace = true }
+clap = { workspace = true }
 mqttrs = "0.4"
 tokio = { workspace = true, features = ["net", "io-util"] }
 

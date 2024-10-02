@@ -7,6 +7,7 @@ use crate::events::EventPattern;
 use crate::events::EventPattern::*;
 use crate::session::Session;
 use crate::templates::PacketTemplate::*;
+use mqttrs::ConnectReturnCode::Accepted;
 use mqttrs::QoS;
 
 pub struct StateMachine {
@@ -76,5 +77,57 @@ impl StateMachine {
             ),
         ];
         StateMachine { rules }
+    }
+
+    pub fn broker() -> Self {
+        let rules = vec![
+            (TcpConnected, vec![]),
+            (
+                Received(Connect {
+                    keep_alive: None,
+                    client_id: None,
+                    clean_session: None,
+                }),
+                vec![Send(Connack {
+                    session_present: Some(false),
+                    code: Some(Accepted),
+                })],
+            ),
+            (
+                Received(Subscribe {
+                    pid: None,
+                    subscriptions: vec![],
+                }),
+                vec![Send(Suback {
+                    pid: None,
+                    codes: vec![],
+                })],
+            ),
+            (
+                Received(Publish {
+                    dup: None,
+                    qos: Some(QoS::AtMostOnce),
+                    pid: None,
+                    retain: None,
+                    topic: None,
+                    payload: None,
+                }),
+                vec![],
+            ),
+            (
+                Received(Publish {
+                    dup: None,
+                    qos: Some(QoS::AtLeastOnce),
+                    pid: None,
+                    retain: None,
+                    topic: None,
+                    payload: None,
+                }),
+                vec![Send(Puback { pid: None })],
+            ),
+            (TcpDisconnected, vec![]),
+        ];
+
+        Self { rules }
     }
 }

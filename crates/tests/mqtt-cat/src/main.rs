@@ -6,13 +6,16 @@ use crate::machines::StateMachine;
 use crate::session::Session;
 use anyhow::Context;
 use bytes::BytesMut;
+use clap::Parser;
 use mqttrs::*;
 use std::net::SocketAddr;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
+use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
 mod actions;
+mod cli;
 mod config;
 mod events;
 mod machines;
@@ -21,9 +24,10 @@ mod templates;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let host = "127.0.0.1:1883";
+    let args = cli::Args::parse();
+
     let config = Config {
-        host: host.to_string(),
+        host: args.host().to_string(),
         keep_alive: 60,
         client_id: "mqtt-cat".to_string(),
         clean_session: true,
@@ -38,14 +42,37 @@ async fn main() -> anyhow::Result<()> {
             retain: false,
         },
     };
-    let sm = StateMachine::sub_client();
+
+    match args.command {
+        cli::Command::Connect { host } => {
+            let sm = StateMachine::sub_client();
+            let mqtt = tcp_connect(&host)
+                .await
+                .context(format!("connecting {}", config.host))?;
+            process_events(mqtt, &sm, &config).await
+        }
+
+        cli::Command::Bind { host } => {
+            let sm = StateMachine::broker();
+            let listener = TcpListener::bind(&host)
+                .await
+                .context(format!("binding {}", config.host))?;
+            loop {
+                let (mqtt, _) = listener.accept().await?;
+                process_events(mqtt, &sm, &config).await?
+            }
+        }
+    }
+}
+
+async fn process_events(
+    mut mqtt: TcpStream,
+    sm: &StateMachine,
+    config: &Config,
+) -> anyhow::Result<()> {
     let mut session = Session::default();
 
-    // TCP Connect
-    let mut mqtt = tcp_connect(host)
-        .await
-        .context(format!("connecting {host}"))?;
-    let actions = sm.derive_actions(&mut session, &config, &Event::TcpConnected);
+    let actions = sm.derive_actions(&mut session, config, &Event::TcpConnected);
     react(&mut mqtt, actions)
         .await
         .context("On TCP connect".to_string())?;
@@ -56,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
         let n = mqtt
             .read_buf(&mut buffer)
             .await
-            .context(format!("reading bytes from {host}"))?;
+            .context(format!("reading bytes from {}", config.host))?;
         if n == 0 {
             println!("<< EOF");
             break;
@@ -67,7 +94,7 @@ async fn main() -> anyhow::Result<()> {
             Some(packet) => {
                 println!("<< {packet:?}");
                 let event = Event::Received(packet);
-                let actions = sm.derive_actions(&mut session, &config, &event);
+                let actions = sm.derive_actions(&mut session, config, &event);
                 react(&mut mqtt, actions)
                     .await
                     .context("On MQTT event".to_string())?;
@@ -76,7 +103,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Tcp Disconnect
-    let actions = sm.derive_actions(&mut session, &config, &Event::TcpDisconnected);
+    let actions = sm.derive_actions(&mut session, config, &Event::TcpDisconnected);
     react(&mut mqtt, actions)
         .await
         .context("On TCP disconnect".to_string())?;
