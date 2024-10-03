@@ -30,6 +30,15 @@ pub enum PacketTemplate {
     Puback {
         pid: Option<Pid>,
     },
+    Pubrec {
+        pid: Option<Pid>,
+    },
+    Pubrel {
+        pid: Option<Pid>,
+    },
+    Pubcomp {
+        pid: Option<Pid>,
+    },
     Subscribe {
         pid: Option<Pid>,
         subscriptions: Vec<SubscribeTopic>,
@@ -38,6 +47,16 @@ pub enum PacketTemplate {
         pid: Option<Pid>,
         codes: Vec<SubscribeReturnCodes>,
     },
+    Unsubscribe {
+        pid: Option<Pid>,
+        subscriptions: Vec<String>,
+    },
+    Unsuback {
+        pid: Option<Pid>,
+    },
+    Pingreq,
+    Pingresp,
+    Disconnect,
 }
 
 impl PacketTemplate {
@@ -85,6 +104,46 @@ impl PacketTemplate {
                     && matches(retain, &publish.retain)
                     && matches(topic, &publish.topic_name)
             }
+
+            (PacketTemplate::Puback { pid }, Packet::Puback(received_pid)) => {
+                matches(pid, received_pid)
+            }
+
+            (PacketTemplate::Pubrec { pid }, Packet::Pubrec(received_pid)) => {
+                matches(pid, received_pid)
+            }
+
+            (PacketTemplate::Pubrel { pid }, Packet::Pubrel(received_pid)) => {
+                matches(pid, received_pid)
+            }
+
+            (PacketTemplate::Pubcomp { pid }, Packet::Pubcomp(received_pid)) => {
+                matches(pid, received_pid)
+            }
+
+            (PacketTemplate::Subscribe { pid, .. }, Packet::Subscribe(subscribe)) => {
+                matches(pid, &subscribe.pid)
+                // TODO check the subscriptions
+            }
+
+            (PacketTemplate::Suback { pid, .. }, Packet::Suback(suback)) => {
+                matches(pid, &suback.pid)
+                // TODO check the return codes
+            }
+
+            (PacketTemplate::Unsubscribe { pid, .. }, Packet::Unsubscribe(unsubscribe)) => {
+                matches(pid, &unsubscribe.pid)
+                // TODO check the subscriptions
+            }
+
+            (PacketTemplate::Unsuback { pid }, Packet::Unsuback(received_pid)) => {
+                matches(pid, received_pid)
+            }
+
+            (PacketTemplate::Pingreq, Packet::Pingreq)
+            | (PacketTemplate::Pingresp, Packet::Pingresp)
+            | (PacketTemplate::Disconnect, Packet::Disconnect) => true,
+
             (_, _) => false,
         }
     }
@@ -140,6 +199,15 @@ impl PacketTemplate {
             PacketTemplate::Puback { pid } => {
                 Packet::Puback(most_specific_pid(pid, event, session))
             }
+            PacketTemplate::Pubrec { pid } => {
+                Packet::Pubrec(most_specific_pid(pid, event, session))
+            }
+            PacketTemplate::Pubrel { pid } => {
+                Packet::Pubrel(most_specific_pid(pid, event, session))
+            }
+            PacketTemplate::Pubcomp { pid } => {
+                Packet::Pubcomp(most_specific_pid(pid, event, session))
+            }
             PacketTemplate::Subscribe { pid, subscriptions } => {
                 let topics = if subscriptions.is_empty() {
                     &config.subscriptions
@@ -155,6 +223,27 @@ impl PacketTemplate {
                 pid: most_specific_pid(pid, event, session),
                 return_codes: codes.clone(),
             }),
+            PacketTemplate::Unsubscribe { pid, subscriptions } => {
+                let topics = if subscriptions.is_empty() {
+                    config
+                        .subscriptions
+                        .iter()
+                        .map(|sub| sub.topic_path.clone())
+                        .collect()
+                } else {
+                    subscriptions.clone()
+                };
+                Packet::Unsubscribe(mqttrs::Unsubscribe {
+                    pid: most_specific_pid(pid, event, session),
+                    topics,
+                })
+            }
+            PacketTemplate::Unsuback { pid } => {
+                Packet::Unsuback(most_specific_pid(pid, event, session))
+            }
+            PacketTemplate::Pingreq => Packet::Pingreq,
+            PacketTemplate::Pingresp => Packet::Pingresp,
+            PacketTemplate::Disconnect => Packet::Disconnect,
         }
     }
 }

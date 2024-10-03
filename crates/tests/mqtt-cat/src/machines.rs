@@ -75,6 +75,25 @@ impl StateMachine {
                 }),
                 vec![Send(Puback { pid: None })],
             ),
+            (
+                Received(Publish {
+                    dup: None,
+                    qos: Some(QoS::ExactlyOnce),
+                    pid: None,
+                    retain: None,
+                    topic: None,
+                    payload: None,
+                }),
+                vec![Send(Pubrec { pid: None })],
+            ),
+            (
+                Received(Pubrec { pid: None }),
+                vec![Send(Pubrel { pid: None })],
+            ),
+            (
+                Received(Pubrel { pid: None }),
+                vec![Send(Pubcomp { pid: None })],
+            ),
         ];
         StateMachine { rules }
     }
@@ -125,6 +144,26 @@ impl StateMachine {
                 }),
                 vec![Send(Puback { pid: None })],
             ),
+            (
+                Received(Publish {
+                    dup: None,
+                    qos: Some(QoS::ExactlyOnce),
+                    pid: None,
+                    retain: None,
+                    topic: None,
+                    payload: None,
+                }),
+                vec![Send(Pubrec { pid: None })],
+            ),
+            (
+                Received(Pubrec { pid: None }),
+                vec![Send(Pubrel { pid: None })],
+            ),
+            (
+                Received(Pubrel { pid: None }),
+                vec![Send(Pubcomp { pid: None })],
+            ),
+            (Received(Pingreq), vec![Send(Pingresp)]),
             (TcpDisconnected, vec![]),
         ];
 
