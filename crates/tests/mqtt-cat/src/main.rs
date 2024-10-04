@@ -1,26 +1,32 @@
 use crate::actions::Action;
 use crate::config::Config;
-use crate::config::Message;
 use crate::events::Event;
+use crate::events::ExpectedEvent;
 use crate::machines::StateMachine;
+use crate::messages::Message;
 use crate::session::Session;
+use crate::timer::TimerSender;
 use anyhow::Context;
 use bytes::BytesMut;
 use clap::Parser;
 use mqttrs::*;
 use std::net::SocketAddr;
+use std::time::Duration;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use tokio::select;
 
 mod actions;
 mod cli;
 mod config;
 mod events;
 mod machines;
+mod messages;
 mod session;
 mod templates;
+mod timer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -71,40 +77,50 @@ async fn process_events(
     config: &Config,
 ) -> anyhow::Result<()> {
     let mut session = Session::default();
+    let (mut timer_sender, mut timer_listener) = timer::channel(Duration::from_millis(250));
 
     let actions = sm.derive_actions(&mut session, config, &Event::TcpConnected);
-    react(&mut mqtt, actions)
+    react(&mut mqtt, &mut timer_sender, actions)
         .await
         .context("On TCP connect".to_string())?;
 
     // MQTT Loop
     let mut buffer = BytesMut::with_capacity(1024);
     loop {
-        let n = mqtt
-            .read_buf(&mut buffer)
-            .await
-            .context(format!("reading bytes from {}", config.host))?;
-        if n == 0 {
-            println!("<< EOF");
-            break;
-        }
-        let bytes = buffer.split();
-        match decode_slice(&bytes).context(format!("format decoding MQTT packet of {n} bytes"))? {
-            None => eprintln!("Not enough data"),
-            Some(packet) => {
-                println!("<< {packet:?}");
-                let event = Event::Received(packet);
+        select! {
+            read = mqtt.read_buf(&mut buffer) => {
+                let n = read.context(format!("reading bytes from {}", config.host))?;
+                if n == 0 {
+                    println!("<< EOF");
+                    break;
+                }
+                let bytes = buffer.split();
+                match decode_slice(&bytes).context(format!("format decoding MQTT packet of {n} bytes"))? {
+                    None => eprintln!("Not enough data"),
+                    Some(packet) => {
+                        println!("<< {packet:?}");
+                        let event = Event::Received(packet);
+                        let actions = sm.derive_actions(&mut session, config, &event);
+                        react(&mut mqtt, &mut timer_sender, actions)
+                            .await
+                            .context("On MQTT event".to_string())?;
+                    }
+                }
+            }
+
+            Some((pid,expected)) = timer_listener.timeout() => {
+                let event = Event::Timeout { pid, expected };
                 let actions = sm.derive_actions(&mut session, config, &event);
-                react(&mut mqtt, actions)
+                react(&mut mqtt, &mut timer_sender, actions)
                     .await
-                    .context("On MQTT event".to_string())?;
+                    .context("On timeout event".to_string())?;
             }
         }
     }
 
     // Tcp Disconnect
     let actions = sm.derive_actions(&mut session, config, &Event::TcpDisconnected);
-    react(&mut mqtt, actions)
+    react(&mut mqtt, &mut timer_sender, actions)
         .await
         .context("On TCP disconnect".to_string())?;
 
@@ -119,12 +135,23 @@ async fn tcp_connect(host: &str) -> anyhow::Result<TcpStream> {
     Ok(stream)
 }
 
-async fn react<'a>(mqtt: &'a mut TcpStream, actions: Vec<Action<'a>>) -> anyhow::Result<()> {
+async fn react<'a>(
+    mqtt: &'a mut TcpStream,
+    timer: &mut TimerSender<Pid, ExpectedEvent>,
+    actions: Vec<Action<'a>>,
+) -> anyhow::Result<()> {
     for action in actions {
         match action {
+            Action::Nop => (),
             Action::Send(packet) => {
                 println!(">> {packet:?}");
                 send_packet(mqtt, packet).await?
+            }
+            Action::TriggerTimer { pid, expected } => {
+                timer.trigger(pid, expected).await;
+            }
+            Action::ClearTimer { pid } => {
+                timer.clear(pid).await;
             }
         }
     }

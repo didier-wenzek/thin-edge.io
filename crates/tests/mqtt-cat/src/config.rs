@@ -1,4 +1,4 @@
-use mqttrs::QoS;
+use crate::messages::Message;
 use mqttrs::SubscribeTopic;
 
 #[derive(Clone)]
@@ -9,12 +9,4 @@ pub struct Config {
     pub clean_session: bool,
     pub subscriptions: Vec<SubscribeTopic>,
     pub message_sample: Message,
-}
-
-#[derive(Clone)]
-pub struct Message {
-    pub topic: String,
-    pub payload: String,
-    pub qos: QoS,
-    pub retain: bool,
 }

@@ -5,6 +5,8 @@ use crate::config::Config;
 use crate::events::Event;
 use crate::events::EventPattern;
 use crate::events::EventPattern::*;
+use crate::events::ExpectedEventTemplate;
+use crate::messages::MessageTemplate;
 use crate::session::Session;
 use crate::templates::PacketTemplate::*;
 use mqttrs::ConnectReturnCode::Accepted;
@@ -34,7 +36,8 @@ impl StateMachine {
     }
 
     pub fn sub_client() -> Self {
-        let rules = vec![
+        let mut rules = Self::mqtt_rules();
+        rules.append(&mut vec![
             (
                 TcpConnected,
                 vec![Send(Connect {
@@ -53,53 +56,13 @@ impl StateMachine {
                     subscriptions: vec![],
                 })],
             ),
-            (
-                Received(Publish {
-                    dup: None,
-                    qos: Some(QoS::AtMostOnce),
-                    pid: None,
-                    retain: None,
-                    topic: None,
-                    payload: None,
-                }),
-                vec![],
-            ),
-            (
-                Received(Publish {
-                    dup: None,
-                    qos: Some(QoS::AtLeastOnce),
-                    pid: None,
-                    retain: None,
-                    topic: None,
-                    payload: None,
-                }),
-                vec![Send(Puback { pid: None })],
-            ),
-            (
-                Received(Publish {
-                    dup: None,
-                    qos: Some(QoS::ExactlyOnce),
-                    pid: None,
-                    retain: None,
-                    topic: None,
-                    payload: None,
-                }),
-                vec![Send(Pubrec { pid: None })],
-            ),
-            (
-                Received(Pubrec { pid: None }),
-                vec![Send(Pubrel { pid: None })],
-            ),
-            (
-                Received(Pubrel { pid: None }),
-                vec![Send(Pubcomp { pid: None })],
-            ),
-        ];
+        ]);
         StateMachine { rules }
     }
 
     pub fn broker() -> Self {
-        let rules = vec![
+        let mut rules = Self::mqtt_rules();
+        rules.append(&mut vec![
             (TcpConnected, vec![]),
             (
                 Received(Connect {
@@ -122,6 +85,15 @@ impl StateMachine {
                     codes: vec![],
                 })],
             ),
+            (Received(Pingreq), vec![Send(Pingresp)]),
+            (TcpDisconnected, vec![]),
+        ]);
+
+        Self { rules }
+    }
+
+    fn mqtt_rules() -> Vec<(EventPattern, Vec<ActionTemplate>)> {
+        vec![
             (
                 Received(Publish {
                     dup: None,
@@ -156,17 +128,132 @@ impl StateMachine {
                 vec![Send(Pubrec { pid: None })],
             ),
             (
+                MessageQueued(MessageTemplate {
+                    topic: None,
+                    payload: None,
+                    qos: Some(QoS::AtMostOnce),
+                    retain: None,
+                }),
+                vec![Send(Publish {
+                    dup: Some(false),
+                    qos: Some(QoS::AtMostOnce),
+                    pid: None,
+                    retain: None,
+                    topic: None,
+                    payload: None,
+                })],
+            ),
+            (
+                MessageQueued(MessageTemplate {
+                    topic: None,
+                    payload: None,
+                    qos: Some(QoS::AtLeastOnce),
+                    retain: None,
+                }),
+                vec![
+                    TriggerTimer {
+                        expected: ExpectedEventTemplate::MessageAck,
+                    },
+                    Send(Publish {
+                        dup: Some(false),
+                        qos: None,
+                        pid: None,
+                        retain: None,
+                        topic: None,
+                        payload: None,
+                    }),
+                ],
+            ),
+            (
+                Timeout(ExpectedEventTemplate::MessageAck),
+                vec![
+                    TriggerTimer {
+                        expected: ExpectedEventTemplate::MessageAck,
+                    },
+                    Send(Publish {
+                        dup: Some(true),
+                        qos: None,
+                        pid: None,
+                        retain: None,
+                        topic: None,
+                        payload: None,
+                    }),
+                ],
+            ),
+            (
+                Received(Puback { pid: None }),
+                vec![ClearTimer {
+                    expected: ExpectedEventTemplate::MessageAck,
+                }],
+            ),
+            (
+                MessageQueued(MessageTemplate {
+                    topic: None,
+                    payload: None,
+                    qos: Some(QoS::ExactlyOnce),
+                    retain: None,
+                }),
+                vec![
+                    TriggerTimer {
+                        expected: ExpectedEventTemplate::MessageRec,
+                    },
+                    Send(Publish {
+                        dup: Some(false),
+                        qos: None,
+                        pid: None,
+                        retain: None,
+                        topic: None,
+                        payload: None,
+                    }),
+                ],
+            ),
+            (
+                Timeout(ExpectedEventTemplate::MessageRec),
+                vec![
+                    TriggerTimer {
+                        expected: ExpectedEventTemplate::MessageRec,
+                    },
+                    Send(Publish {
+                        dup: Some(true),
+                        qos: None,
+                        pid: None,
+                        retain: None,
+                        topic: None,
+                        payload: None,
+                    }),
+                ],
+            ),
+            (
                 Received(Pubrec { pid: None }),
-                vec![Send(Pubrel { pid: None })],
+                vec![
+                    ClearTimer {
+                        expected: ExpectedEventTemplate::MessageRec,
+                    },
+                    TriggerTimer {
+                        expected: ExpectedEventTemplate::MessageComp,
+                    },
+                    Send(Pubrel { pid: None }),
+                ],
+            ),
+            (
+                Timeout(ExpectedEventTemplate::MessageComp),
+                vec![
+                    TriggerTimer {
+                        expected: ExpectedEventTemplate::MessageComp,
+                    },
+                    Send(Pubrel { pid: None }),
+                ],
+            ),
+            (
+                Received(Pubcomp { pid: None }),
+                vec![ClearTimer {
+                    expected: ExpectedEventTemplate::MessageComp,
+                }],
             ),
             (
                 Received(Pubrel { pid: None }),
                 vec![Send(Pubcomp { pid: None })],
             ),
-            (Received(Pingreq), vec![Send(Pingresp)]),
-            (TcpDisconnected, vec![]),
-        ];
-
-        Self { rules }
+        ]
     }
 }

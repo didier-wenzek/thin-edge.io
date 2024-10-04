@@ -248,7 +248,7 @@ impl PacketTemplate {
     }
 }
 
-fn matches<T, U>(template: &Option<T>, u: &U) -> bool
+pub fn matches<T, U>(template: &Option<T>, u: &U) -> bool
 where
     T: PartialEq<U>,
 {

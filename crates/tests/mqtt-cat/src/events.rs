@@ -1,17 +1,36 @@
+use crate::messages::*;
 use crate::templates::PacketTemplate;
 use mqttrs::Packet;
+use mqttrs::Pid;
 use mqttrs::QosPid;
 
 pub enum Event<'a> {
     TcpConnected,
     TcpDisconnected,
     Received(Packet<'a>),
+    MessageQueued(Message),
+    Timeout { pid: Pid, expected: ExpectedEvent },
+}
+
+#[derive(Clone)]
+pub enum ExpectedEvent {
+    MessageAck(Message),
+    MessageRec(Message),
+    MessageComp,
 }
 
 pub enum EventPattern {
     TcpConnected,
     TcpDisconnected,
     Received(PacketTemplate),
+    MessageQueued(MessageTemplate),
+    Timeout(ExpectedEventTemplate),
+}
+
+pub enum ExpectedEventTemplate {
+    MessageAck,
+    MessageRec,
+    MessageComp,
 }
 
 impl EventPattern {
@@ -20,6 +39,12 @@ impl EventPattern {
             (EventPattern::TcpConnected, Event::TcpConnected) => true,
             (EventPattern::TcpDisconnected, Event::TcpDisconnected) => true,
             (EventPattern::Received(template), Event::Received(packet)) => template.matches(packet),
+            (EventPattern::MessageQueued(template), Event::MessageQueued(message)) => {
+                template.matches(message)
+            }
+            (EventPattern::Timeout(template), Event::Timeout { expected, .. }) => {
+                template.matches(expected)
+            }
             (_, _) => false,
         }
     }
@@ -30,6 +55,7 @@ impl<'a> Event<'a> {
         match self {
             Event::TcpConnected => None,
             Event::TcpDisconnected => None,
+
             Event::Received(Packet::Connect(_)) => None,
             Event::Received(Packet::Connack(_)) => None,
             Event::Received(Packet::Publish(mqttrs::Publish {
@@ -55,6 +81,22 @@ impl<'a> Event<'a> {
             Event::Received(Packet::Pingreq) => None,
             Event::Received(Packet::Pingresp) => None,
             Event::Received(Packet::Disconnect) => None,
+
+            Event::MessageQueued(_) => None,
+
+            Event::Timeout { pid, .. } => Some(pid),
+        }
+    }
+}
+
+impl ExpectedEventTemplate {
+    pub fn matches(&self, expected: &ExpectedEvent) -> bool {
+        match (self, expected) {
+            (ExpectedEventTemplate::MessageAck, ExpectedEvent::MessageAck(_))
+            | (ExpectedEventTemplate::MessageRec, ExpectedEvent::MessageRec(_))
+            | (ExpectedEventTemplate::MessageComp, ExpectedEvent::MessageComp) => true,
+
+            (_, _) => false,
         }
     }
 }
