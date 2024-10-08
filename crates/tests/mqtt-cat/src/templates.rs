@@ -148,12 +148,7 @@ impl PacketTemplate {
         }
     }
 
-    pub fn build<'a>(
-        &'a self,
-        session: &mut Session,
-        config: &'a Config,
-        event: &'a Event,
-    ) -> Packet<'a> {
+    pub fn build<'a>(&'a self, given_pid: Pid, config: &'a Config) -> Packet<'a> {
         match self {
             PacketTemplate::Connect {
                 keep_alive,
@@ -184,7 +179,7 @@ impl PacketTemplate {
                 payload,
             } => {
                 let qos = qos.unwrap_or(config.message_sample.qos);
-                let pid = most_specific_pid(pid, event, session);
+                let pid = pid.unwrap_or(given_pid);
                 Packet::Publish(mqttrs::Publish {
                     dup: dup.unwrap_or(false),
                     qospid: qospid(qos, pid),
@@ -196,18 +191,10 @@ impl PacketTemplate {
                         .as_bytes(),
                 })
             }
-            PacketTemplate::Puback { pid } => {
-                Packet::Puback(most_specific_pid(pid, event, session))
-            }
-            PacketTemplate::Pubrec { pid } => {
-                Packet::Pubrec(most_specific_pid(pid, event, session))
-            }
-            PacketTemplate::Pubrel { pid } => {
-                Packet::Pubrel(most_specific_pid(pid, event, session))
-            }
-            PacketTemplate::Pubcomp { pid } => {
-                Packet::Pubcomp(most_specific_pid(pid, event, session))
-            }
+            PacketTemplate::Puback { pid } => Packet::Puback(pid.unwrap_or(given_pid)),
+            PacketTemplate::Pubrec { pid } => Packet::Pubrec(pid.unwrap_or(given_pid)),
+            PacketTemplate::Pubrel { pid } => Packet::Pubrel(pid.unwrap_or(given_pid)),
+            PacketTemplate::Pubcomp { pid } => Packet::Pubcomp(pid.unwrap_or(given_pid)),
             PacketTemplate::Subscribe { pid, subscriptions } => {
                 let topics = if subscriptions.is_empty() {
                     &config.subscriptions
@@ -215,12 +202,12 @@ impl PacketTemplate {
                     subscriptions
                 };
                 Packet::Subscribe(mqttrs::Subscribe {
-                    pid: most_specific_pid(pid, event, session),
+                    pid: pid.unwrap_or(given_pid),
                     topics: topics.clone(),
                 })
             }
             PacketTemplate::Suback { pid, codes } => Packet::Suback(mqttrs::Suback {
-                pid: most_specific_pid(pid, event, session),
+                pid: pid.unwrap_or(given_pid),
                 return_codes: codes.clone(),
             }),
             PacketTemplate::Unsubscribe { pid, subscriptions } => {
@@ -234,13 +221,11 @@ impl PacketTemplate {
                     subscriptions.clone()
                 };
                 Packet::Unsubscribe(mqttrs::Unsubscribe {
-                    pid: most_specific_pid(pid, event, session),
+                    pid: pid.unwrap_or(given_pid),
                     topics,
                 })
             }
-            PacketTemplate::Unsuback { pid } => {
-                Packet::Unsuback(most_specific_pid(pid, event, session))
-            }
+            PacketTemplate::Unsuback { pid } => Packet::Unsuback(pid.unwrap_or(given_pid)),
             PacketTemplate::Pingreq => Packet::Pingreq,
             PacketTemplate::Pingresp => Packet::Pingresp,
             PacketTemplate::Disconnect => Packet::Disconnect,
@@ -253,16 +238,6 @@ where
     T: PartialEq<U>,
 {
     template.as_ref().map(|t| t == u).unwrap_or(true)
-}
-
-fn most_specific_pid(pid: &Option<Pid>, event: &Event, session: &mut Session) -> mqttrs::Pid {
-    if let Some(pid) = pid {
-        return *pid;
-    }
-    if let Some(pid) = event.pid() {
-        return *pid;
-    }
-    session.next_pid()
 }
 
 fn qospid(qos: QoS, pid: Pid) -> QosPid {

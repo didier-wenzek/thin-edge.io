@@ -26,9 +26,10 @@ impl StateMachine {
     ) -> Vec<Action<'a>> {
         for (pattern, templates) in self.rules.iter() {
             if pattern.matches(event) {
+                let mut pid = event.pid();
                 return templates
                     .iter()
-                    .map(|template| template.build(session, config, event))
+                    .map(|template| template.build(&mut pid, session, config, event))
                     .collect();
             }
         }
@@ -151,6 +152,7 @@ impl StateMachine {
                     retain: None,
                 }),
                 vec![
+                    GeneratePid,
                     TriggerTimer {
                         expected: ExpectedEventTemplate::MessageAck,
                     },
@@ -194,6 +196,7 @@ impl StateMachine {
                     retain: None,
                 }),
                 vec![
+                    GeneratePid,
                     TriggerTimer {
                         expected: ExpectedEventTemplate::MessageRec,
                     },

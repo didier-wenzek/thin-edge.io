@@ -51,7 +51,7 @@ impl EventPattern {
 }
 
 impl<'a> Event<'a> {
-    pub fn pid(&self) -> Option<&mqttrs::Pid> {
+    pub fn pid(&self) -> Option<Pid> {
         match self {
             Event::TcpConnected => None,
             Event::TcpDisconnected => None,
@@ -65,26 +65,26 @@ impl<'a> Event<'a> {
             Event::Received(Packet::Publish(mqttrs::Publish {
                 qospid: QosPid::AtLeastOnce(pid),
                 ..
-            })) => Some(pid),
+            })) => Some(*pid),
             Event::Received(Packet::Publish(mqttrs::Publish {
                 qospid: QosPid::ExactlyOnce(pid),
                 ..
-            })) => Some(pid),
-            Event::Received(Packet::Puback(pid)) => Some(pid),
-            Event::Received(Packet::Pubrec(pid)) => Some(pid),
-            Event::Received(Packet::Pubrel(pid)) => Some(pid),
-            Event::Received(Packet::Pubcomp(pid)) => Some(pid),
-            Event::Received(Packet::Subscribe(mqttrs::Subscribe { pid, .. })) => Some(pid),
-            Event::Received(Packet::Suback(mqttrs::Suback { pid, .. })) => Some(pid),
-            Event::Received(Packet::Unsubscribe(mqttrs::Unsubscribe { pid, .. })) => Some(pid),
-            Event::Received(Packet::Unsuback(pid)) => Some(pid),
+            })) => Some(*pid),
+            Event::Received(Packet::Puback(pid)) => Some(*pid),
+            Event::Received(Packet::Pubrec(pid)) => Some(*pid),
+            Event::Received(Packet::Pubrel(pid)) => Some(*pid),
+            Event::Received(Packet::Pubcomp(pid)) => Some(*pid),
+            Event::Received(Packet::Subscribe(mqttrs::Subscribe { pid, .. })) => Some(*pid),
+            Event::Received(Packet::Suback(mqttrs::Suback { pid, .. })) => Some(*pid),
+            Event::Received(Packet::Unsubscribe(mqttrs::Unsubscribe { pid, .. })) => Some(*pid),
+            Event::Received(Packet::Unsuback(pid)) => Some(*pid),
             Event::Received(Packet::Pingreq) => None,
             Event::Received(Packet::Pingresp) => None,
             Event::Received(Packet::Disconnect) => None,
 
             Event::MessageQueued(_) => None,
 
-            Event::Timeout { pid, .. } => Some(pid),
+            Event::Timeout { pid, .. } => Some(*pid),
         }
     }
 }
