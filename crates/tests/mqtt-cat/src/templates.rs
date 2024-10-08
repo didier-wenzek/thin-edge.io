@@ -8,6 +8,7 @@ use mqttrs::QoS;
 use mqttrs::QosPid;
 use mqttrs::SubscribeReturnCodes;
 use mqttrs::SubscribeTopic;
+use crate::Message;
 
 pub enum PacketTemplate {
     Connect {
@@ -148,7 +149,7 @@ impl PacketTemplate {
         }
     }
 
-    pub fn build<'a>(&'a self, given_pid: Pid, config: &'a Config) -> Packet<'a> {
+    pub fn build<'a>(&'a self, given_pid: Pid, config: &'a Config, event: &'a Event) -> Packet<'a> {
         match self {
             PacketTemplate::Connect {
                 keep_alive,
@@ -178,16 +179,20 @@ impl PacketTemplate {
                 topic,
                 payload,
             } => {
-                let qos = qos.unwrap_or(config.message_sample.qos);
+                let message = match event {
+                    Event::MessageQueued(message) => message,
+                    _ => &config.message_sample,
+                };
+                let qos = qos.unwrap_or(message.qos);
                 let pid = pid.unwrap_or(given_pid);
                 Packet::Publish(mqttrs::Publish {
                     dup: dup.unwrap_or(false),
                     qospid: qospid(qos, pid),
-                    retain: retain.unwrap_or(config.message_sample.retain),
-                    topic_name: topic.as_ref().unwrap_or(&config.message_sample.topic),
+                    retain: retain.unwrap_or(message.retain),
+                    topic_name: topic.as_ref().unwrap_or(&message.topic),
                     payload: payload
                         .as_ref()
-                        .unwrap_or(&config.message_sample.payload)
+                        .unwrap_or(&message.payload)
                         .as_bytes(),
                 })
             }

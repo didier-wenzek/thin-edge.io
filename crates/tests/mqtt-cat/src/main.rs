@@ -17,6 +17,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::select;
+use tokio::sync::mpsc;
 
 mod actions;
 mod cli;
@@ -39,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
         clean_session: true,
         subscriptions: vec![SubscribeTopic {
             topic_path: "mqtt-cat/in".to_string(),
-            qos: QoS::AtLeastOnce,
+            qos: QoS::ExactlyOnce,
         }],
         message_sample: Message {
             topic: "mqtt-cat/out".to_string(),
@@ -52,10 +53,19 @@ async fn main() -> anyhow::Result<()> {
     match args.command {
         cli::Command::Connect { host } => {
             let sm = StateMachine::sub_client();
+            let messages = message_generator(
+                Message {
+                    topic: "mqtt-cat/out".to_string(),
+                    payload: "hello!".to_string(),
+                    qos: QoS::AtLeastOnce,
+                    retain: false,
+                },
+                Duration::from_millis(2500)
+            );
             let mqtt = tcp_connect(&host)
                 .await
                 .context(format!("connecting {}", config.host))?;
-            process_events(mqtt, &sm, &config).await
+            process_events(mqtt, &sm, &config, messages).await
         }
 
         cli::Command::Bind { host } => {
@@ -65,7 +75,16 @@ async fn main() -> anyhow::Result<()> {
                 .context(format!("binding {}", config.host))?;
             loop {
                 let (mqtt, _) = listener.accept().await?;
-                process_events(mqtt, &sm, &config).await?
+                let messages = message_generator(
+                    Message {
+                        topic: "mqtt-cat/in".to_string(),
+                        payload: "hello subscriber!".to_string(),
+                        qos: QoS::ExactlyOnce,
+                        retain: false,
+                    },
+                    Duration::from_millis(2500)
+                );
+                process_events(mqtt, &sm, &config, messages).await?
             }
         }
     }
@@ -75,6 +94,7 @@ async fn process_events(
     mut mqtt: TcpStream,
     sm: &StateMachine,
     config: &Config,
+    mut messages: mpsc::Receiver<Message>,
 ) -> anyhow::Result<()> {
     let mut session = Session::default();
     let (mut timer_sender, mut timer_listener) = timer::channel(Duration::from_millis(250));
@@ -106,6 +126,14 @@ async fn process_events(
                             .context("On MQTT event".to_string())?;
                     }
                 }
+            }
+
+            Some(message) = messages.recv() => {
+                let event = Event::MessageQueued(message);
+                let actions = sm.derive_actions(&mut session, config, &event);
+                react(&mut mqtt, &mut timer_sender, actions)
+                    .await
+                    .context("On new message".to_string())?;
             }
 
             Some((pid,expected)) = timer_listener.timeout() => {
@@ -163,4 +191,19 @@ async fn send_packet<'a>(mqtt: &'a mut TcpStream, pkt: Packet<'a>) -> anyhow::Re
     let len = encode_slice(&pkt, &mut buf)?;
     mqtt.write_all(&buf[..len]).await.context("sending bytes")?;
     Ok(())
+}
+
+fn message_generator(repeat: Message, interval: Duration) -> mpsc::Receiver<Message> {
+    let (tx,rx) = mpsc::channel(10);
+
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(interval).await;
+            if tx.send(repeat.clone()).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    rx
 }

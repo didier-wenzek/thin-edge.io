@@ -1,7 +1,7 @@
 use crate::templates::matches;
 use mqttrs::QoS;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Message {
     pub topic: String,
     pub payload: String,

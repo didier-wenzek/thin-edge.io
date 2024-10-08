@@ -36,7 +36,7 @@ impl ActionTemplate {
             }
             ActionTemplate::Send(packet) => {
                 let given_pid = event.pid().or(*pid).unwrap_or_else(|| session.next_pid());
-                Action::Send(packet.build(given_pid, config))
+                Action::Send(packet.build(given_pid, config, event))
             }
             ActionTemplate::TriggerTimer { expected } => match expected {
                 ExpectedEventTemplate::MessageAck => match event {
