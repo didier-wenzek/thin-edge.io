@@ -4054,7 +4054,6 @@ name = "tedge_actors"
 version = "1.4.2"
 dependencies = [
  "async-trait",
- "env_logger",
  "futures",
  "log",
  "thiserror",
