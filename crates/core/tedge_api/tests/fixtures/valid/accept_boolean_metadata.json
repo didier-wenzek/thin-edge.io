@@ -1,4 +1,5 @@
 {
   "time" : "2013-06-22T17:03:14.000+02:00",
-  "temperature": [50,60,70]
+  "in_prod": true,
+  "pressure": 220
 }

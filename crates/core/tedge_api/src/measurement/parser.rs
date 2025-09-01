@@ -4,7 +4,9 @@
 //!
 use crate::measurement::MeasurementVisitor;
 use serde::de::DeserializeSeed;
+use serde::de::Error;
 use serde::de::MapAccess;
+use serde::de::SeqAccess;
 use serde::de::{self};
 use serde::Deserializer;
 use std::borrow::Cow;
@@ -228,6 +230,32 @@ where
     {
         self.visitor
             .visit_text_property(self.key.as_ref(), value)
+            .map_err(de::Error::custom)?;
+
+        Ok(())
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        self.visitor
+            .visit_json_property(self.key.as_ref(), value.into())
+            .map_err(de::Error::custom)?;
+
+        Ok(())
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut array: Vec<serde_json::Value> = vec![];
+        while let Some(elem) = seq.next_element()? {
+            array.push(elem);
+        }
+        self.visitor
+            .visit_json_property(self.key.as_ref(), array.into())
             .map_err(de::Error::custom)?;
 
         Ok(())

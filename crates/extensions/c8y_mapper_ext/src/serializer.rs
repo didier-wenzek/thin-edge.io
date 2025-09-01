@@ -224,6 +224,17 @@ impl MeasurementVisitor for C8yJsonSerializer {
         Ok(())
     }
 
+    fn visit_json_property(
+        &mut self,
+        key: &str,
+        value: serde_json::Value,
+    ) -> Result<(), Self::Error> {
+        self.json.write_key(key)?;
+        self.json.write_value(&value)?;
+
+        Ok(())
+    }
+
     fn visit_start_group(&mut self, group: &str) -> Result<(), Self::Error> {
         if self.within_group.is_some() {
             return Err(MeasurementStreamError::UnexpectedStartOfGroup.into());
