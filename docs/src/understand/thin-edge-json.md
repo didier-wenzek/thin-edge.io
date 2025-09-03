@@ -197,6 +197,15 @@ For instance, the example is translated into the following when forwarded to Cum
 }
 ```
 
+:::note
+Additional non-numeric properties are not fully free-form. The following restrictions apply:
+
+- Record of properties cannot be nested
+- Properties cannot be numeric.
+  - `"props": { "sensor": "DS18B20", "version": 1.2 }` is an error: the version must be given as a string.
+  - `"range":{"min":-55","max":+125}` is interpreted as a measurement group, all values being numbers.
+:::
+
 ## Events
 
 *Events* are notifications that something happened on the device, its environment, the domain application or the software system.
