@@ -93,12 +93,11 @@ impl Units {
     }
 
     pub fn set_unit(&mut self, measurement: String, meta: serde_json::Value) {
-        if let serde_json::Value::String(unit) = meta {
-            // "Temperature": "°C"
-            self.units.insert(measurement, unit);
-        } else if let Some(unit) = meta.get("unit") {
+        if let Some(unit) = meta.get("unit") {
             // "Temperature": {"unit": "°C"},
-            self.set_unit(measurement, unit.clone());
+            if let serde_json::Value::String(unit_name) = unit {
+                self.units.insert(measurement, unit_name.to_owned());
+            }
         } else {
             // "Climate": { "Temperature": {"unit": "°C"}, "Humidity": {"unit": "%RH"} }
             let group = measurement;
