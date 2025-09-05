@@ -58,6 +58,61 @@ Thin-edge devices support sending complex measurements with units
     Should Be Equal As Numbers    ${measurements[0]["Engine"]["Pressure"]["value"]}    321.0
     Should Not Contain    ${measurements[0]["Engine"]["Pressure"]}    unit
 
+Measurement units are specific to each measurement type
+    # Using a test-specific measurement is required to not interfer with other tests
+    Execute Command    tedge mqtt pub -r te/device/main///m/t3/meta '{ "temperature": { "unit": "°C" } }'
+    Execute Command    tedge mqtt pub -r te/device/main///m/t4/meta '{ "temperature": { "unit": "°F" } }'
+    Execute Command    tedge mqtt pub te/device/main///m/t3 '{ "temperature": 25 }'
+    Execute Command    tedge mqtt pub te/device/main///m/t4 '{ "temperature": 25 }'
+    ${measurements}=    Device Should Have Measurements
+    ...    minimum=1
+    ...    maximum=1
+    ...    type=t3
+    ...    value=temperature
+    ...    series=temperature
+    Log    ${measurements}
+    Should Be Equal    ${measurements[0]["temperature"]["temperature"]["unit"]}    °C
+    ${measurements}=    Device Should Have Measurements
+    ...    minimum=1
+    ...    maximum=1
+    ...    type=t4
+    ...    value=temperature
+    ...    series=temperature
+    Log    ${measurements}
+    Should Be Equal    ${measurements[0]["temperature"]["temperature"]["unit"]}    °F
+
+Measurement units can be updated
+    # Using a test-specific measurement is required to not interfer with other tests
+    Execute Command    tedge mqtt pub -r te/device/main///m/t5/meta '{ "temperature": { "unit": "°C" } }'
+    Execute Command    tedge mqtt pub te/device/main///m/t5 '{ "temperature": 25 }'
+    Execute Command    tedge mqtt pub -r te/device/main///m/t5/meta '{ "temperature": { "unit": "°F" } }'
+    Execute Command    tedge mqtt pub te/device/main///m/t5 '{ "temperature": 298.15 }'
+    ${measurements}=    Device Should Have Measurements
+    ...    minimum=2
+    ...    maximum=2
+    ...    type=t5
+    ...    value=temperature
+    ...    series=temperature
+    Log    ${measurements}
+    Should Be Equal    ${measurements[0]["temperature"]["temperature"]["unit"]}    °C
+    Should Be Equal    ${measurements[1]["temperature"]["temperature"]["unit"]}    °F
+
+Measurement units can be cleared
+    # Using a test-specific measurement is required to not interfer with other tests
+    Execute Command    tedge mqtt pub -r te/device/main///m/t6/meta '{ "temperature": { "unit": "°C" } }'
+    Execute Command    tedge mqtt pub te/device/main///m/t6 '{ "temperature": 25 }'
+    Execute Command    tedge mqtt pub -r te/device/main///m/t6/meta ''
+    Execute Command    tedge mqtt pub te/device/main///m/t6 '{ "temperature": 298.15 }'
+    ${measurements}=    Device Should Have Measurements
+    ...    minimum=2
+    ...    maximum=2
+    ...    type=t6
+    ...    value=temperature
+    ...    series=temperature
+    Log    ${measurements}
+    Should Be Equal    ${measurements[0]["temperature"]["temperature"]["unit"]}    °C
+    Should Not Contain    ${measurements[1]["temperature"]["temperature"]}    unit
+
 Thin-edge devices support sending simple measurements with custom type
     Execute Command    tedge mqtt pub te/device/main///m/ '{ "type":"CustomType", "temperature": 25 }'
     ${measurements}=    Device Should Have Measurements
