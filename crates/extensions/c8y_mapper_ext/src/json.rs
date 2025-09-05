@@ -13,7 +13,7 @@
 //!        "pressure": 220
 //!     }"#;
 //! let entity = CloudEntityMetadata::new("foo".into(), EntityMetadata::main_device(None));
-//! let output = from_thin_edge_json(single_value_thin_edge_json, &entity,"");
+//! let output = from_thin_edge_json(single_value_thin_edge_json, &entity,"",None);
 //! ```
 
 use crate::entity_cache::CloudEntityMetadata;
