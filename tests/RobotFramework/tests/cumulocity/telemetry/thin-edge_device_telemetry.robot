@@ -20,6 +20,22 @@ Thin-edge devices support sending simple measurements
     ...    series=temperature
     Log    ${measurements}
 
+Thin-edge devices support sending simple measurements with units
+    Execute Command    tedge mqtt pub -r te/device/main///m//meta '{ "temperature": { "unit": "°C" } }'
+    Execute Command    tedge mqtt pub te/device/main///m/ '{ "temperature": 25.1 }'
+    Execute Command    tedge mqtt pub te/device/main///m/ '{ "temperature": 25.2 }'
+    ${measurements}=    Device Should Have Measurements
+    ...    minimum=2
+    ...    maximum=2
+    ...    type=ThinEdgeMeasurement
+    ...    value=temperature
+    ...    series=temperature
+    Log    ${measurements}
+    Should Be Equal As Numbers    ${measurements[0]["temperature"]["temperature"]["value"]}    25.2
+    Should Be Equal    ${measurements[0]["temperature"]["temperature"]["unit"]}    °C
+    Should Be Equal As Numbers    ${measurements[1]["temperature"]["temperature"]["value"]}    25.1
+    Should Be Equal    ${measurements[1]["temperature"]["temperature"]["unit"]}    °C
+
 Thin-edge devices support sending simple measurements with custom type
     Execute Command    tedge mqtt pub te/device/main///m/ '{ "type":"CustomType", "temperature": 25 }'
     ${measurements}=    Device Should Have Measurements
