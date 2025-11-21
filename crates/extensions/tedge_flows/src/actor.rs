@@ -7,6 +7,7 @@ use crate::flow::SourceTag;
 use crate::registry::FlowRegistryExt;
 use crate::runtime::MessageProcessor;
 use crate::stats::MqttStatsPublisher;
+use crate::FlowsMapperConfig;
 use crate::InputMessage;
 use crate::Tick;
 use async_trait::async_trait;
@@ -28,7 +29,6 @@ use tedge_file_system_ext::FsWatchEvent;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::QoS;
 use tedge_mqtt_ext::SubscriptionDiff;
-use tedge_mqtt_ext::Topic;
 use tedge_mqtt_ext::TopicFilter;
 use tedge_watch_ext::WatchEvent;
 use tedge_watch_ext::WatchRequest;
@@ -43,6 +43,7 @@ use tracing::warn;
 pub const STATS_DUMP_INTERVAL: Duration = Duration::from_secs(300);
 
 pub struct FlowsMapper {
+    pub(super) config: FlowsMapperConfig,
     pub(super) messages: SimpleMessageBox<InputMessage, SubscriptionDiff>,
     pub(super) mqtt_sender: DynSender<MqttMessage>,
     pub(super) watch_request_sender: DynSender<WatchRequest>,
@@ -50,7 +51,6 @@ pub struct FlowsMapper {
     pub(super) watched_commands: HashSet<Utf8PathBuf>,
     pub(super) processor: MessageProcessor<ConnectedFlowRegistry>,
     pub(super) next_dump: Instant,
-    pub(super) status_topic: Topic,
     pub(super) stats_publisher: MqttStatsPublisher,
 }
 
@@ -173,7 +173,7 @@ impl FlowsMapper {
             "status": status,
             "time": time.unix_timestamp(),
         });
-        MqttMessage::new(&self.status_topic, payload.to_string()).with_qos(QoS::AtLeastOnce)
+        MqttMessage::new(&self.config.status_topic, payload.to_string()).with_qos(QoS::AtLeastOnce)
     }
 
     async fn on_source_poll(&mut self) -> Result<(), RuntimeError> {
