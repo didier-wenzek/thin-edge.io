@@ -1,6 +1,7 @@
 use crate::flow::epoch_ms;
 use crate::flow::FlowError;
 use crate::flow::Message;
+use crate::Transport;
 use rquickjs::Ctx;
 use rquickjs::FromJs;
 use rquickjs::IntoJs;
@@ -195,12 +196,20 @@ impl TryFrom<BTreeMap<String, JsonValue>> for Message {
                 .into())
             }
         };
+        let Ok(transport) = value
+            .get("transport")
+            .filter(|t| *t != &JsonValue::Null)
+            .map(|v| v.to_owned().into_value::<Transport>())
+            .transpose()
+        else {
+            return Err(anyhow::anyhow!("Unexpected transport data").into());
+        };
 
         Ok(Message {
             topic: topic.to_owned(),
             payload,
             timestamp: None,
-            transport: None,
+            transport,
         })
     }
 }
