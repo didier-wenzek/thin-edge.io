@@ -104,6 +104,7 @@ mod tests {
     use serde_json::json;
     use std::time::Duration;
     use tedge_mqtt_ext::MqttMessage;
+    use tedge_mqtt_ext::Topic;
 
     #[tokio::test]
     async fn identity_script() {
@@ -671,6 +672,41 @@ export function onMessage(message) {
         let mqtt_message = MqttMessage::try_from(output).unwrap();
         assert_eq!(mqtt_message.qos, tedge_mqtt_ext::QoS::ExactlyOnce,);
         assert!(mqtt_message.retain,);
+    }
+
+    #[tokio::test]
+    async fn getting_protocol_specific_properties() {
+        let js = r#"
+export function onMessage(message) {
+    let payload
+    if (message.transport && message.transport.mqtt) {
+         let mqtt = message.transport.mqtt
+         let qos = mqtt.qos || 1
+         let retain = mqtt.retain || false
+        payload = `message received from MQTT, using QoS ${qos} with retain ${retain}`
+    } else {
+        payload = "message not received from MQTT"
+    }
+    return { "topic": "test", "payload": payload}
+}
+        "#;
+        let (runtime, mut script) = runtime_with(js).await;
+
+        let mqtt_message = MqttMessage::new(&Topic::new_unchecked("foo/bar"), "some message")
+            .with_qos(tedge_mqtt_ext::QoS::ExactlyOnce)
+            .with_retain_flag(true);
+        let input = mqtt_message.into();
+        let output = script
+            .on_message(&runtime, SystemTime::now(), &input)
+            .await
+            .unwrap()
+            .pop()
+            .unwrap();
+
+        assert_eq!(
+            output.payload_str(),
+            Some("message received from MQTT, using QoS 2 with retain true")
+        );
     }
 
     async fn runtime_with(js: &str) -> (JsRuntime, FlowStep) {
