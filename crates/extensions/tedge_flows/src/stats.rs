@@ -162,7 +162,7 @@ impl Stats {
             }),
         };
 
-        publisher.publish(dim, stats)
+        publisher.publish_record(dim, stats)
     }
 }
 
@@ -212,7 +212,7 @@ impl Dimension {
 pub trait StatsPublisher {
     type Record;
 
-    fn publish(&self, dim: &impl Display, stats: Value) -> Option<Self::Record>;
+    fn publish_record(&self, dim: &impl Display, stats: Value) -> Option<Self::Record>;
 }
 
 pub struct MqttStatsPublisher {
@@ -222,7 +222,7 @@ pub struct MqttStatsPublisher {
 impl StatsPublisher for MqttStatsPublisher {
     type Record = MqttMessage;
 
-    fn publish(&self, dim: &impl Display, stats: Value) -> Option<Self::Record> {
+    fn publish_record(&self, dim: &impl Display, stats: Value) -> Option<Self::Record> {
         let topic = Topic::new(&format!("{}/{}", self.topic_prefix, dim)).ok()?;
         let payload = stats.to_string();
         Some(MqttMessage::new(&topic, payload))
