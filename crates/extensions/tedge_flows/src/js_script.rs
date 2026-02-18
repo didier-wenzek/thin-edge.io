@@ -652,10 +652,10 @@ export function onMessage(message, context) {
     async fn setting_protocol_specific_properties() {
         let js = r#"
 export function onMessage(message) {
-    message.transport = { "mqtt": {
+    message.mqtt = {
         "qos": 2,
         "retain": true,
-    }};
+    };
     return message
 }
         "#;
