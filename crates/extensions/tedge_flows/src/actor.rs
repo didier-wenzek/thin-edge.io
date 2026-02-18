@@ -39,8 +39,6 @@ use tracing::error;
 use tracing::info;
 use tracing::warn;
 
-pub const STATS_DUMP_INTERVAL: Duration = Duration::from_secs(300);
-
 pub struct FlowsMapper {
     pub(super) config: FlowsMapperConfig,
     pub(super) messages: SimpleMessageBox<InputMessage, SubscriptionDiff>,
@@ -241,7 +239,7 @@ impl FlowsMapper {
             {
                 self.mqtt_sender.send(record).await?;
             }
-            self.next_dump = now + STATS_DUMP_INTERVAL;
+            self.next_dump = now + self.config.stats_dump_interval;
         }
         for messages in self.processor.on_interval(timestamp, now).await {
             self.publish_result(messages).await?;

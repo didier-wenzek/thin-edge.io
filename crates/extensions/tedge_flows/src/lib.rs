@@ -14,7 +14,6 @@ mod steps;
 mod transformers;
 
 use crate::actor::FlowsMapper;
-use crate::actor::STATS_DUMP_INTERVAL;
 pub use crate::config::ConfigError;
 pub use crate::config::FlowConfig;
 pub use crate::connected_flow::ConnectedFlowRegistry;
@@ -31,6 +30,7 @@ pub use js_value::JsonValue;
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::path::PathBuf;
+use std::time::Duration;
 use tedge_actors::fan_in_message_type;
 use tedge_actors::Builder;
 use tedge_actors::CloneSender;
@@ -58,17 +58,21 @@ pub use transformers::Transformer;
 pub struct FlowsMapperConfig {
     pub(crate) status_topic: Topic,
     pub(crate) stats_publisher: MqttStatsPublisher,
+    pub(crate) stats_dump_interval: Duration,
 }
 
 impl Default for FlowsMapperConfig {
     fn default() -> Self {
-        FlowsMapperConfig::new("te/device/main/service/tedge-flows")
+        FlowsMapperConfig::new(
+            "te/device/main/service/tedge-flows",
+            Duration::from_secs(300),
+        )
     }
 }
 
 impl FlowsMapperConfig {
     /// Panics if the topic prefix is not a valid MQTT topic name
-    pub fn new(topic_prefix: &str) -> Self {
+    pub fn new(topic_prefix: &str, stats_dump_interval: Duration) -> Self {
         let statistics_topic = format!("{topic_prefix}/status/metrics");
         let status_topic = format!("{topic_prefix}/status/flows");
 
@@ -79,6 +83,7 @@ impl FlowsMapperConfig {
         FlowsMapperConfig {
             status_topic: Topic::new(&status_topic).unwrap(),
             stats_publisher,
+            stats_dump_interval,
         }
     }
 }
@@ -197,6 +202,7 @@ impl Builder<FlowsMapper> for FlowsMapperBuilder {
     fn build(self) -> FlowsMapper {
         let subscriptions = self.topics();
         let watched_commands = HashSet::new();
+        let next_dump = Instant::now() + self.config.stats_dump_interval;
         FlowsMapper {
             config: self.config,
             messages: self.message_box.build(),
@@ -205,7 +211,7 @@ impl Builder<FlowsMapper> for FlowsMapperBuilder {
             subscriptions,
             watched_commands,
             processor: self.processor,
-            next_dump: Instant::now() + STATS_DUMP_INTERVAL,
+            next_dump,
         }
     }
 }
