@@ -27,7 +27,6 @@ use camino::Utf8Path;
 use camino::Utf8PathBuf;
 pub use js_lib::kv_store::FlowContextHandle;
 pub use js_value::JsonValue;
-use std::collections::HashSet;
 use std::convert::Infallible;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -52,7 +51,6 @@ use tedge_mqtt_ext::TopicFilter;
 use tedge_watch_ext::WatchActorBuilder;
 use tedge_watch_ext::WatchEvent;
 use tedge_watch_ext::WatchRequest;
-use tokio::time::Instant;
 pub use transformers::Transformer;
 
 pub struct FlowsMapperConfig {
@@ -201,18 +199,14 @@ impl Builder<FlowsMapper> for FlowsMapperBuilder {
 
     fn build(self) -> FlowsMapper {
         let subscriptions = self.topics();
-        let watched_commands = HashSet::new();
-        let next_dump = Instant::now() + self.config.stats_dump_interval;
-        FlowsMapper {
-            config: self.config,
-            messages: self.message_box.build(),
-            mqtt_sender: self.mqtt_sender,
-            watch_request_sender: self.watch_request_sender,
+        FlowsMapper::new(
+            self.config,
+            self.message_box.build(),
+            self.mqtt_sender,
+            self.watch_request_sender,
             subscriptions,
-            watched_commands,
-            processor: self.processor,
-            next_dump,
-        }
+            self.processor,
+        )
     }
 }
 
