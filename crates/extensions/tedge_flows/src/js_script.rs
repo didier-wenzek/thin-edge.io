@@ -679,8 +679,8 @@ export function onMessage(message) {
         let js = r#"
 export function onMessage(message) {
     let payload
-    if (message.transport && message.transport.mqtt) {
-         let mqtt = message.transport.mqtt
+    if (message.mqtt) {
+         let mqtt = message.mqtt
          let qos = mqtt.qos || 1
          let retain = mqtt.retain || false
         payload = `message received from MQTT, using QoS ${qos} with retain ${retain}`

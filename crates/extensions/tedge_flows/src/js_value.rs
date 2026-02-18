@@ -122,21 +122,18 @@ impl From<Message> for JsonValue {
             Ok(utf8) => JsonValue::string(utf8),
             Err(_) => JsonValue::Null,
         };
-        let transport = value.transport.map(|transport| match transport {
-            Transport::Mqtt { qos, retain } => {
-                let mqtt = JsonValue::object([
-                    ("qos", JsonValue::Number((qos as u8).into())),
-                    ("retain", JsonValue::Bool(retain)),
-                ]);
-                JsonValue::object([("mqtt", mqtt)])
-            }
+        let mqtt = value.transport.map(|transport| match transport {
+            Transport::Mqtt { qos, retain } => JsonValue::object([
+                ("qos", JsonValue::Number((qos as u8).into())),
+                ("retain", JsonValue::Bool(retain)),
+            ]),
         });
         JsonValue::object([
             ("topic", JsonValue::string(value.topic)),
             ("payload", payload),
             ("raw_payload", raw_payload),
             ("time", JsonValue::option(value.timestamp)),
-            ("transport", JsonValue::option(transport)),
+            ("mqtt", JsonValue::option(mqtt)),
         ])
     }
 }
