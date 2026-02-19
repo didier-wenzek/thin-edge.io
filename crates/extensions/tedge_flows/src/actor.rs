@@ -5,6 +5,7 @@ use crate::flow::FlowResult;
 use crate::flow::Message;
 use crate::flow::SourceTag;
 use crate::registry::FlowRegistryExt;
+use crate::registry::RegistrationStatus;
 use crate::runtime::MessageProcessor;
 use crate::InputMessage;
 use crate::Tick;
@@ -155,11 +156,12 @@ impl FlowsMapper {
 
     async fn update_flow_status(&mut self, flow: &Utf8Path) -> Result<(), RuntimeError> {
         let now = OffsetDateTime::now_utc();
-        let status = if self.processor.registry.contains_flow(flow) {
-            "updated"
-        } else {
-            "removed"
+        let status = match self.processor.registry.contains_flow(flow) {
+            RegistrationStatus::Unregistered => "removed",
+            RegistrationStatus::Registered => "updated",
+            RegistrationStatus::Broken => "broken",
         };
+        eprintln!("update_flow_status {flow}: {}", status);
         let status = self.flow_status(flow, status, &now);
         self.mqtt_sender.send(status).await?;
         Ok(())
