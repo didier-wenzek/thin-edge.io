@@ -99,7 +99,11 @@ pub trait FlowRegistryExt: FlowRegistry {
 
     async fn add_flow(&mut self, js_runtime: &mut JsRuntime, path: &Utf8Path);
     async fn remove_flow(&mut self, path: &Utf8Path);
-    async fn reload_script(&mut self, js_runtime: &mut JsRuntime, path: &Utf8Path);
+    async fn reload_script(
+        &mut self,
+        js_runtime: &mut JsRuntime,
+        path: &Utf8Path,
+    ) -> Vec<Utf8PathBuf>;
     async fn remove_script(&mut self, path: &Utf8Path);
 
     async fn load_config(
@@ -199,20 +203,29 @@ impl<T: FlowRegistry + Send> FlowRegistryExt for T {
         self.store_mut().remove(path);
     }
 
-    async fn reload_script(&mut self, js_runtime: &mut JsRuntime, path: &Utf8Path) {
+    async fn reload_script(
+        &mut self,
+        js_runtime: &mut JsRuntime,
+        path: &Utf8Path,
+    ) -> Vec<Utf8PathBuf> {
+        let mut reloaded_flows = HashSet::new();
         for flow in self.store_mut().flows_mut() {
+            let mut reloaded = false;
             for step in &mut flow.as_mut().steps {
                 if step.path() == Some(path) {
                     match step.load_script(js_runtime).await {
                         Ok(()) => {
+                            reloaded = true;
                             info!(target: "flows", "Reloading flow script {path}");
                         }
                         Err(e) => {
                             error!(target: "flows", "Failed to reload flow script {path}: {e}");
-                            return;
                         }
                     }
                 }
+            }
+            if reloaded {
+                reloaded_flows.insert(flow.as_ref().source.clone());
             }
         }
 
@@ -220,7 +233,12 @@ impl<T: FlowRegistry + Send> FlowRegistryExt for T {
         let unloaded_flows = self.store_mut().drain_unloaded();
         for path in unloaded_flows {
             self.add_flow(js_runtime, &path).await;
+            if self.store().flow(&path).is_some() {
+                reloaded_flows.insert(path);
+            }
         }
+
+        reloaded_flows.into_iter().collect()
     }
 
     async fn remove_script(&mut self, path: &Utf8Path) {

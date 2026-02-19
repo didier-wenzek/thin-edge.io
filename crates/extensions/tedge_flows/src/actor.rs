@@ -154,6 +154,16 @@ impl FlowsMapper {
         Ok(())
     }
 
+    async fn update_all_flow_status(
+        &mut self,
+        flows: Vec<Utf8PathBuf>,
+    ) -> Result<(), RuntimeError> {
+        for flow in flows {
+            self.update_flow_status(&flow).await?;
+        }
+        Ok(())
+    }
+
     async fn update_flow_status(&mut self, flow: &Utf8Path) -> Result<(), RuntimeError> {
         let now = OffsetDateTime::now_utc();
         let status = match self.processor.registry.contains_flow(flow) {
@@ -451,7 +461,9 @@ impl FlowsMapper {
 
     async fn on_file_updated(&mut self, path: &Utf8Path) -> Result<(), RuntimeError> {
         if matches!(path.extension(), Some("js" | "ts" | "mjs")) {
-            self.processor.reload_script(path).await;
+            let reloaded_flows = self.processor.reload_script(path).await;
+            self.send_updated_subscriptions().await?;
+            self.update_all_flow_status(reloaded_flows).await?;
         } else if path.extension() == Some("toml") {
             self.processor.add_flow(path).await;
             self.send_updated_subscriptions().await?;
