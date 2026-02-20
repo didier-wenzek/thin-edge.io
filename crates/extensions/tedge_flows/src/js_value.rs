@@ -348,7 +348,10 @@ impl JsonValue {
             return Ok(JsonValue::Number(n.into()));
         }
         if let Some(n) = value.as_float() {
-            let js_n = serde_json::Number::from_f64(n)
+            if n == n.trunc() {
+                return Ok(JsonValue::Number((n.trunc() as i64).into()));
+            }
+            let js_n = Number::from_f64(n)
                 .map(JsonValue::Number)
                 .unwrap_or(JsonValue::Null);
             return Ok(js_n);

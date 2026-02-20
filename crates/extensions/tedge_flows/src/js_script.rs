@@ -104,6 +104,7 @@ mod tests {
     use serde_json::json;
     use std::time::Duration;
     use tedge_mqtt_ext::MqttMessage;
+    use tedge_mqtt_ext::QoS::*;
     use tedge_mqtt_ext::Topic;
 
     #[tokio::test]
@@ -652,26 +653,30 @@ export function onMessage(message, context) {
     async fn setting_protocol_specific_properties() {
         let js = r#"
 export function onMessage(message) {
-    message.mqtt = {
-        "qos": 2,
-        "retain": true,
-    };
+    message.mqtt = JSON.parse(message.payload)
     return message
 }
         "#;
         let (runtime, mut script) = runtime_with(js).await;
 
-        let input = Message::new("foo/bar", "some message");
-        let output = script
-            .on_message(&runtime, SystemTime::now(), &input)
-            .await
-            .unwrap()
-            .pop()
-            .unwrap();
+        for (payload, qos, retain) in [
+            (r#"{ "qos": 2, "retain": true }"#, ExactlyOnce, true),
+            (r#"{ "retain": true }"#, AtLeastOnce, true),
+            (r#"{ "qos": 0 }"#, AtMostOnce, false),
+            ("{ }", AtLeastOnce, false),
+        ] {
+            let input = Message::new("", payload);
+            let output = script
+                .on_message(&runtime, SystemTime::now(), &input)
+                .await
+                .unwrap()
+                .pop()
+                .unwrap();
 
-        let mqtt_message = MqttMessage::try_from(output).unwrap();
-        assert_eq!(mqtt_message.qos, tedge_mqtt_ext::QoS::ExactlyOnce,);
-        assert!(mqtt_message.retain,);
+            let mqtt_message = MqttMessage::try_from(output).unwrap();
+            assert_eq!(mqtt_message.qos, qos);
+            assert_eq!(mqtt_message.retain, retain);
+        }
     }
 
     #[tokio::test]
