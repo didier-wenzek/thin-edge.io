@@ -12,10 +12,12 @@ use crate::flows::GenMapper;
 use anyhow::Context;
 use clap::Parser;
 use flockfile::check_another_instance_is_not_running;
+use tedge_api::mqtt_topics::EntityTopicId;
 use tedge_config::cli::CommonArgs;
 use tedge_config::log_init;
 use tedge_config::tedge_toml::ProfileName;
 use tedge_config::TEdgeConfig;
+use tedge_flows::FlowRegistryExt;
 use tracing::log::warn;
 
 #[cfg(feature = "aws")]
@@ -170,4 +172,11 @@ pub async fn run(mapper_opt: MapperOpt, config: TEdgeConfig) -> anyhow::Result<(
             .start(config, mapper_opt.common.config_dir.as_ref())
             .await
     }
+}
+
+pub fn load_builtin_flows(flows: &mut impl FlowRegistryExt) {
+    c8y_mapper_ext::load_builtin_flows(
+        flows,
+        EntityTopicId::default_main_service("tedge-mapper-c8y").unwrap(),
+    )
 }

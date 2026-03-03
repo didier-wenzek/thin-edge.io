@@ -11,6 +11,7 @@ use camino::Utf8PathBuf;
 use std::time::SystemTime;
 use tedge_config::TEdgeConfig;
 use tedge_flows::BaseFlowRegistry;
+use tedge_flows::LoadError;
 use tedge_flows::Message;
 use tedge_flows::MessageProcessor;
 
@@ -164,10 +165,18 @@ impl TEdgeFlowsCli {
         tedge_flows::flows_dir(config.root_dir(), mapper, profile)
     }
 
+    async fn init_processor(
+        flows_dir: &Utf8PathBuf,
+    ) -> Result<MessageProcessor<BaseFlowRegistry>, LoadError> {
+        let mut registry = BaseFlowRegistry::new(flows_dir);
+        tedge_mapper::load_builtin_flows(&mut registry);
+        MessageProcessor::try_new(registry).await
+    }
+
     pub async fn load_flows(
         flows_dir: &Utf8PathBuf,
     ) -> Result<MessageProcessor<BaseFlowRegistry>, Error> {
-        let mut processor = MessageProcessor::with_base_registry(flows_dir)
+        let mut processor = Self::init_processor(flows_dir)
             .await
             .with_context(|| format!("loading flows and steps from {flows_dir}"))?;
         processor.load_all_flows().await;
@@ -178,7 +187,7 @@ impl TEdgeFlowsCli {
         flows_dir: &Utf8PathBuf,
         path: &Utf8PathBuf,
     ) -> Result<MessageProcessor<BaseFlowRegistry>, Error> {
-        let mut processor = MessageProcessor::with_base_registry(flows_dir)
+        let mut processor = Self::init_processor(flows_dir)
             .await
             .with_context(|| format!("loading flow {path}"))?;
 
