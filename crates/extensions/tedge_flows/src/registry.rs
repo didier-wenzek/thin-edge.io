@@ -84,7 +84,6 @@ pub enum RegistrationStatus {
 #[async_trait]
 pub trait FlowRegistryExt: FlowRegistry {
     fn config_dir(&self) -> Utf8PathBuf;
-
     fn registration_status(&self, path: &Utf8Path) -> RegistrationStatus;
     fn flow(&self, path: &Utf8Path) -> Option<&Self::Flow>;
     fn flow_mut(&mut self, path: &Utf8Path) -> Option<&mut Self::Flow>;
@@ -277,7 +276,12 @@ impl<T: FlowRegistry + Send> FlowRegistryExt for T {
         config: FlowConfig,
     ) {
         match config
-            .compile(self.builtins(), js_runtime, path.to_owned())
+            .compile(
+                self.builtins(),
+                js_runtime,
+                self.config_dir().as_ref(),
+                path.to_owned(),
+            )
             .await
             .and_then(Self::compile)
         {

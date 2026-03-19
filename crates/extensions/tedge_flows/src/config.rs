@@ -25,7 +25,6 @@ use tracing::info;
 #[derive(Deserialize)]
 pub struct FlowConfig {
     // meta info
-    name: Option<String>,
     version: Option<String>,
     description: Option<String>,
     tags: Option<Vec<String>>,
@@ -113,6 +112,9 @@ pub enum OutputConfig {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
+    #[error("Not a valid filename for a flow: {0}")]
+    IncorrectFlowFilename(String),
+
     #[error("Not a valid MQTT topic: {0}")]
     IncorrectTopic(String),
 
@@ -136,15 +138,46 @@ pub enum ConfigError {
     FileInfiniteLoop { name: String, path: String },
 }
 
+/// ```
+/// use tedge_flows::derive_flow_name;
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/flow.toml".into()), None);
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello.toml".into()), Some("hello".into()));
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello/flow.toml".into()), Some("hello".into()));
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello/world.toml".into()), Some("hello/world".into()));
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello/world/flow.toml".into()), Some("hello/world".into()));
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello/params.toml".into()), None);
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello/world.js".into()), None);
+/// assert_eq!(derive_flow_name("/flows".into(), "/unrelated/flows/hello.toml".into()), None);
+/// ```
+pub fn derive_flow_name(flows_dir: &Utf8Path, flow_path: &Utf8Path) -> Option<String> {
+    let path = flow_path.strip_prefix(flows_dir).ok()?;
+    if path.extension() != Some("toml") {
+        return None;
+    };
+    let file_name = path.file_name()?;
+    if file_name == Params::filename() {
+        return None;
+    }
+
+    let dir_name = path.parent()?.to_string();
+    let file_prefix = path.file_stem()?;
+    match (dir_name.is_empty(), file_prefix) {
+        (true, "flow") => None,
+        (false, "flow") => Some(dir_name),
+        (true, file_prefix) => Some(file_prefix.to_string()),
+        (false, file_prefix) => Some(format!("{}/{}", dir_name, file_prefix)),
+    }
+}
+
 impl FlowConfig {
     /// Loads all the flow definitions
     ///
     /// Return the collection of loaded flow configs
     /// as well as the list of files that cannot be read as flow specs
     pub async fn load_all_flows(
-        config_dir: &Utf8Path,
+        flows_dir: &Utf8Path,
     ) -> (HashMap<Utf8PathBuf, FlowConfig>, Vec<Utf8PathBuf>) {
-        let pattern = format!("{}/**/*.toml", config_dir);
+        let pattern = format!("{}/**/*.toml", flows_dir);
         let paths = tokio::task::spawn_blocking(move || {
             let mut paths = Vec::new();
             match glob(&pattern) {
@@ -218,7 +251,6 @@ impl FlowConfig {
             interval: None,
         };
         Self {
-            name: None,
             version: None,
             description: None,
             tags: None,
@@ -238,6 +270,7 @@ impl FlowConfig {
         self,
         rs_transformers: &BuiltinTransformers,
         js_runtime: &mut JsRuntime,
+        flows_dir: &Utf8Path,
         source: Utf8PathBuf,
     ) -> Result<Flow, ConfigError> {
         let input = self.input.try_into()?;
@@ -252,9 +285,10 @@ impl FlowConfig {
                 .await?;
             steps.push(step);
         }
-        let name = self
-            .name
-            .unwrap_or_else(|| source.file_name().unwrap_or_default().to_string());
+
+        let Some(name) = derive_flow_name(flows_dir, &source) else {
+            return Err(ConfigError::IncorrectFlowFilename(source.to_string()));
+        };
 
         detect_loop(&name, &input, &output, self.expect_loop)?;
 
