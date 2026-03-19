@@ -188,7 +188,8 @@ impl<T: FlowRegistry + Send> FlowRegistryExt for T {
 
     async fn load_single_script(&mut self, js_runtime: &mut JsRuntime, script: &Utf8Path) {
         let config = FlowConfig::wrap_script_into_flow(script);
-        self.load_config(js_runtime, script, config).await;
+        let flow = script.with_extension("toml");
+        self.load_config(js_runtime, &flow, config).await;
     }
 
     async fn add_flow(&mut self, js_runtime: &mut JsRuntime, path: &Utf8Path) {
