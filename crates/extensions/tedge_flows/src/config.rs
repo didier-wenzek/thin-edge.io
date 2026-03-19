@@ -154,18 +154,14 @@ pub fn derive_flow_name(flows_dir: &Utf8Path, flow_path: &Utf8Path) -> Option<St
     if path.extension() != Some("toml") {
         return None;
     };
-    let file_name = path.file_name()?;
-    if file_name == Params::filename() {
+    if path.file_name()? == Params::filename() {
         return None;
     }
-
-    let dir_name = path.parent()?.to_string();
-    let file_prefix = path.file_stem()?;
-    match (dir_name.is_empty(), file_prefix) {
-        (true, "flow") => None,
-        (false, "flow") => Some(dir_name),
-        (true, file_prefix) => Some(file_prefix.to_string()),
-        (false, file_prefix) => Some(format!("{}/{}", dir_name, file_prefix)),
+    match (path.parent()?.as_str(), path.file_stem()?) {
+        ("", "flow") => None,
+        (dir_name, "flow") => Some(dir_name.into()),
+        ("", file_stem) => Some(file_stem.into()),
+        (dir_name, file_stem) => Some(format!("{dir_name}/{file_stem}")),
     }
 }
 
