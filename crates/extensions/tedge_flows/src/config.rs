@@ -112,8 +112,8 @@ pub enum OutputConfig {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
-    #[error("Not a valid filename for a flow: {0}")]
-    IncorrectFlowFilename(String),
+    #[error("Not a valid filename for a flow")]
+    IncorrectFlowFilename,
 
     #[error("Not a valid MQTT topic: {0}")]
     IncorrectTopic(String),
@@ -140,7 +140,7 @@ pub enum ConfigError {
 
 /// ```
 /// use tedge_flows::derive_flow_name;
-/// assert_eq!(derive_flow_name("/flows".into(), "/flows/flow.toml".into()), None);
+/// assert_eq!(derive_flow_name("/flows".into(), "/flows/flow.toml".into()), Some("flow".into()));
 /// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello.toml".into()), Some("hello".into()));
 /// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello/flow.toml".into()), Some("hello".into()));
 /// assert_eq!(derive_flow_name("/flows".into(), "/flows/hello/world.toml".into()), Some("hello/world".into()));
@@ -158,7 +158,7 @@ pub fn derive_flow_name(flows_dir: &Utf8Path, flow_path: &Utf8Path) -> Option<St
         return None;
     }
     match (path.parent()?.as_str(), path.file_stem()?) {
-        ("", "flow") => None,
+        ("", "flow") => Some("flow".to_string()),
         (dir_name, "flow") => Some(dir_name.into()),
         ("", file_stem) => Some(file_stem.into()),
         (dir_name, file_stem) => Some(format!("{dir_name}/{file_stem}")),
@@ -283,7 +283,7 @@ impl FlowConfig {
         }
 
         let Some(name) = derive_flow_name(flows_dir, &source) else {
-            return Err(ConfigError::IncorrectFlowFilename(source.to_string()));
+            return Err(ConfigError::IncorrectFlowFilename);
         };
 
         detect_loop(&name, &input, &output, self.expect_loop)?;
