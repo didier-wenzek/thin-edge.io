@@ -700,7 +700,8 @@ mod tests {
         assert!(detect_loop("my-flow", &input, &output, true).is_ok());
     }
 
-    #[test_case(FlowOutput::Mqtt { topic: Some(Topic::new("te/another/test").unwrap()) }; "mqtt output different topic")]
+    #[test_case(FlowOutput::Mqtt { topic: Some(Topic::new("te/another/test").unwrap()) }; "mqtt output different topic"
+    )]
     #[test_case(FlowOutput::Mqtt { topic: None }; "mqtt output without fixed topic")]
     fn no_loop_detected_for_different_output_types(output: FlowOutput) {
         let input = FlowInput::Mqtt {
@@ -743,6 +744,31 @@ script = "main.js"
 [output.mqtt]
 topic = "te/device/main///e/"
 "#;
+
+        let params = Params::load_toml(params_toml).unwrap();
+        let flow: FlowConfig = toml::from_str(flow_toml).unwrap();
+        let expected_flow: FlowConfig = toml::from_str(expected_flow_toml).unwrap();
+
+        assert_eq!(expected_flow, flow.substitute_params(&params).unwrap());
+    }
+
+    #[test]
+    fn params_substitute_mqtt_topics() {
+        let params_toml = r#"
+        topic.in = "input"
+        topic.out = "output"
+        child = "child-xyz"
+        "#;
+
+        let flow_toml = r#"
+        input.mqtt.topics = [ "${params.topic.in}", "c8y/#", "te/device/${params.child}///e/"]
+        output.mqtt.topic = "c8y/${params.topic.out}"
+        "#;
+
+        let expected_flow_toml = r#"
+        input.mqtt.topics = [ "input", "c8y/#", "te/device/child-xyz///e/"]
+        output.mqtt.topic = "c8y/output"
+        "#;
 
         let params = Params::load_toml(params_toml).unwrap();
         let flow: FlowConfig = toml::from_str(flow_toml).unwrap();
